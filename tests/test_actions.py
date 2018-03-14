@@ -6,12 +6,12 @@ from copy import copy
 from contextlib import contextmanager
 from mock import MagicMock
 
-from transacslash.actions import Action, StatefullAction, statefull_action, UnitAction, unit_action, ActionsPipeline
-from transacslash.exceptions import ActionException
-from transacslash.streamers import InfoStreamer
-from transacslash.data_structs import ReferencesDict
+from pysyphe.actions import Action, StatefullAction, statefull_action, UnitAction, unit_action, ActionsPipeline
+from pysyphe.exceptions import ActionException
+from pysyphe.streamers import InfoStreamer
+from pysyphe.data_structs import ReferencesDict
 if sys.version_info < (3, 0):
-    from transacslash.py2 import InstanceMethod
+    from pysyphe.py2 import InstanceMethod
 
 
 @contextmanager

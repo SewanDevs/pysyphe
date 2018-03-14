@@ -2,8 +2,8 @@
 
 import pytest
 
-from transacslash.data_structs import ReferencesDict, ReversibleList
-from transacslash.exceptions import TransacslashKeyError
+from pysyphe.data_structs import ReferencesDict, ReversibleList
+from pysyphe.exceptions import TransacslashKeyError
 
 
 class test_ReferencesDict(object):
