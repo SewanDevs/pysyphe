@@ -135,21 +135,22 @@ class Action(object):
             fct = self._rollback_fct
         if isinstance(fct, partial):
             fct = fct.func
-        if hasattr(self, "_class") and action_type == "action":
-            fct._class = self._class  # _class added by AddClassToCallable
-        # Use __qualname__ in python3.
-        if inspect.isfunction(fct):
+        if not inspect.isfunction( fct ):
+            return str(fct)
+
+        if sys.version_info >= (3, 0):
+            name = fct.__qualname__.replace('<locals>.', '')
+        else:
+            if hasattr(self, "_class") and action_type == "action":
+                fct._class = self._class  # _class added by AddClassToCallable
             if hasattr(fct, "_class"):
                 # Thanks to ActionsClass metaclass
                 name = '{}.{}'.format(fct._class.__name__, fct.__name__)
             else:
                 name = fct.__name__
-            if fct.__globals__["__name__"] != "__main__":
-                name = '{}.{}'.format(fct.__globals__["__name__"], name)
-            return name
-        else:
-            # To help debug, just in case.
-            return str(fct)
+        if fct.__globals__["__name__"] != "__main__":
+            name = '{}.{}'.format(fct.__globals__["__name__"], name)
+        return name
 
 
 class StatefullAction(Action):

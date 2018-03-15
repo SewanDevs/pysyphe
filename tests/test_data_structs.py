@@ -109,13 +109,13 @@ class TestReversibleList(object):
 
     @staticmethod
     def test_next():
-        assert ReversibleList([1, 2, 3]).next() == 1
+        assert next(ReversibleList([1, 2, 3])) == 1
 
     @staticmethod
     def test_next_continuous():
         r = ReversibleList([1], continuous=True)
-        r.next()
-        assert r.next() == 1
+        next(r)
+        assert next(r) == 1
 
     @staticmethod
     def test_len():

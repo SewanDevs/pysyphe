@@ -680,11 +680,21 @@ def complex_pipeline(complex_actions):
     ap = ActionsPipeline()
     ap.append(prep_action)
     ap.append(prep_action_2)
-    return ap, results
+    if sys.version_info < (3,0):
+        actions_names = ["tests.test_actions.my_action","tests.test_actions.my_action_2",
+                         "tests.test_actions.my_action_2_rollback", "tests.test_actions.my_action_rollback"]
+    else:
+        actions_names = ["tests.test_actions.complex_actions.my_action",
+                         "tests.test_actions.complex_actions.my_action_2",
+                         "tests.test_actions.complex_actions.my_action_2_rollback",
+                         "tests.test_actions.complex_actions.my_action_rollback"]
+    return ap, results, actions_names
 
 
 def test_actions_pipeline(complex_pipeline):
-    ap, results = complex_pipeline
+    ap, results, _ = complex_pipeline
+    from pysyphe.streamers import HumanReadableActionsLogger
+    ap.set_info_streamer(HumanReadableActionsLogger())
     ap.do()
     ap.undo()
     assert results == [
@@ -701,9 +711,10 @@ def test_actions_pipeline(complex_pipeline):
 
 
 def test_actions_pipeline_simulate(complex_pipeline):
-    ap, results = complex_pipeline
+    ap, results, actions = complex_pipeline
+
     ap.simulate_until([
-        ("tests.test_actions.my_action", {"text": "WOLOLOO", "id": 1, "id2": 2, "before_text": "OOLOLOW"}),
+        (actions[0], {"text": "WOLOLOO", "id": 1, "id2": 2, "before_text": "OOLOLOW"}),
     ])
     ap.do()
     ap.undo()
@@ -711,11 +722,11 @@ def test_actions_pipeline_simulate(complex_pipeline):
 
 
 def test_actions_pipeline_simulate_with_rollback(complex_pipeline):
-    ap, results = complex_pipeline
+    ap, results, actions = complex_pipeline
     ap.simulate_until([
-        ("tests.test_actions.my_action", {"text": "WOLOLOO", "id": 1, "id2": 2, "before_text": "OOLOLOW"}),
-        ("tests.test_actions.my_action_2", {"id": 3}),
-        ("tests.test_actions.my_action_2_rollback", {"id": 2})
+        (actions[0], {"text": "WOLOLOO", "id": 1, "id2": 2, "before_text": "OOLOLOW"}),
+        (actions[1], {"id": 3}),
+        (actions[2], {"id": 2})
     ])
     ap.undo()
     assert results == [ 1, "OOLOLOW" ]
