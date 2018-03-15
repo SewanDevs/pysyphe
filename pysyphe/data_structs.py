@@ -130,6 +130,8 @@ class ReversibleList(Iterator):
         self._position += 1
         return next_elem
 
+    __next__ = next
+
     def __len__(self):
         return len(self._list)
 

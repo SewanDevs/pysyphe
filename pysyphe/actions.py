@@ -4,7 +4,7 @@ import sys
 import inspect
 from copy import copy
 from functools import partial
-from contextlib import nested, contextmanager
+from contextlib import contextmanager
 
 from .data_structs import ReferencesDict, ReversibleList
 from .streamers import InfoStreamer
@@ -12,6 +12,10 @@ from .exceptions import ActionException
 
 if sys.version_info < (3, 0):
     from .py2 import InstanceMethod, StaticMethod
+try:
+    from contextlib import nested
+except ImportError:
+    from .py3 import nested
 
 # TODO: add a propery to have the name of an action, for pipeline action too.
 

@@ -1,0 +1,115 @@
+image: python:2.7
+
+variables:
+    IMAGE_TAG: gitlab.priv.sewan.fr:4567/sophia/pysyphe
+
+stages:
+  - lint
+  - test
+  - analysis
+  - build
+  - publish
+
+before_script:
+  - date
+
+after_script:
+  - date
+
+#################################################################################
+#                                     Analysis                                  #
+#################################################################################
+flake8:
+  stage: lint
+  script:
+    - pip install flake8
+    - flake8
+
+#################################################################################
+#                                   Tests for python 2                          #
+#################################################################################
+
+tox2.7:
+  stage: test
+  before_script:
+    - pip install -r requirements.txt
+  script:
+    - tox
+  artifacts:
+    paths:
+      - reports/
+
+
+
+#################################################################################
+#                                   Tests for python 3                          #
+#################################################################################
+
+tox3.6:
+  image: python:3.6
+  stage: test
+  before_script:
+    - pip install -r requirements.txt
+  script:
+    - tox
+  artifacts:
+    paths:
+      - reports/
+
+
+#################################################################################
+#                                   Analysis                                       #
+#################################################################################
+
+sonarqube_preview:
+  image: gitlab.priv.sewan.fr:4567/sophia/dockers/utils/sonar-runner:alpine
+  stage: analysis
+  script:
+    - sh /opt/sonar-runner/bin/sonar-runner
+        -Dsonar.host.url=$SONAR_URL
+        -Dsonar.gitlab.user_token=$SONAR_GITLAB_USERTOKEN
+        -Dsonar.login=$SONAR_LOGIN
+        -Dsonar.gitlab.project_id=$CI_PROJECT_PATH
+        -Dsonar.analysis.mode=preview
+        -Dsonar.issuesReport.console.enable=true
+        -Dsonar.gitlab.commit_sha=$CI_BUILD_REF
+        -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME
+
+sonarqube_analysis:
+  image: gitlab.priv.sewan.fr:4567/sophia/dockers/utils/sonar-runner:alpine
+  stage: analysis
+  script:
+    - sh /opt/sonar-runner/bin/sonar-runner -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN
+  only:
+    - tags
+    - master
+
+#################################################################################
+#                             Build Lib with PDR                                #
+#################################################################################
+build-lib:
+  stage: build
+  script:
+  - pip install .
+  - python2.7 setup.py sdist --formats=gztar,zip
+  artifacts:
+    paths:
+      - dist/
+  only:
+    - master
+    - tags
+
+#################################################################################
+#                             Publish on devpi                                 #
+#################################################################################
+
+publish-devpi:
+  stage: publish
+  script:
+  - pip install -U devpi-client
+  - devpi use http://devpi.priv.sewan.fr
+  - devpi use /sophia/prod
+  - devpi login sophia --password $DEVPI_PASSWD
+  - devpi upload --from-dir dist
+  only:
+    - tags
