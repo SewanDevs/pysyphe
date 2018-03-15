@@ -3,7 +3,8 @@
 import logging
 import traceback
 
-
+logger = logging.getLogger('pysyphe')
+logger.setLevel(logging.INFO)
 
 class InfoStreamer(object):
     def send_info(self, **kwargs):
@@ -32,7 +33,7 @@ class HumanReadableActionsLogger(InfoStreamer):
                 kwargs["traceback"] = traceback.format_exc()
 
         if log_txt:
-            logging.info(" ".join(log_txt).format(**kwargs))
+            logger.info(" ".join(log_txt).format(**kwargs))
 
 
 class ActionsLoggerForSimulation(InfoStreamer):
