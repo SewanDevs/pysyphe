@@ -6,6 +6,7 @@ import traceback
 logger = logging.getLogger('pysyphe')
 logger.setLevel(logging.INFO)
 
+
 class InfoStreamer(object):
     def send_info(self, **kwargs):
         pass
@@ -20,9 +21,9 @@ class HumanReadableActionsLogger(InfoStreamer):
             elif 'end' in kwargs and "exc" not in kwargs:
                 log_txt.append("Successfull end of")
             elif "exc" in kwargs:
-                log_txt.append( "Failure of")
+                log_txt.append("Failure of")
             elif "simul" in kwargs:
-                log_txt.append( "Simulation of")
+                log_txt.append("Simulation of")
             log_txt.append('{action_name}')
             if "rollback_of" in kwargs:
                 log_txt.append("(rollback of {rollback_of})")

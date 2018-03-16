@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+
 class TransactionHandler(object):
     """ Two phase commit handler.
         TransactionHandler is the interface used by the TransactionsManager to manage a transaction.
@@ -18,7 +19,8 @@ class TransactionHandler(object):
         If any transaction handler commit preparation fails, all transactions will be rollbacked.
 
         Reliability of the transaction depends on the confidence we can have in the prepare_commit->commit phase.
-        If the probability of a fail of the commit phase after a successfull commit preparation is high, then the transaction is not reliable.
+        If the probability of a fail of the commit phase after a successfull commit preparation is high,
+        then the transaction is not reliable.
 
         There is cases when commit can't be prepared (with simple mysql transaction for example) and then commit may fail.
         It will be more reliable if the manager do this kind of commit first.
@@ -82,13 +84,13 @@ class TransactionsManager(object):
             if self._rollback_tried:
                 # "raise WeAreDoomed from" en python3
                 # Don't know what we really could do in this case ?!?
-                raise Exception( "We are doomed.")
+                raise Exception("We are doomed.")
             else:
                 try:
                     self.rollback()
                 except Exception as e:
                     # TODO: Implement a raise from because it's really usefull for debugging.
-                    raise Exception( "We are doomed: {}".format(e))
+                    raise Exception("We are doomed: {}".format(e))
             raise
 
     def execute(self):
@@ -109,16 +111,16 @@ class TransactionsManager(object):
             raise Exception("Transactions have not begun!")
         # Two phase commit.
         # Prepare commit for all transactions.
-        prepare_commit_trs = [ transaction_handler for transaction_handler in self._transaction_handlers
-                               if transaction_handler.can_prepare_commit() ]
-        if any( not transaction_handler.prepare_commit() for transaction_handler in prepare_commit_trs ):
+        prepare_commit_trs = [transaction_handler for transaction_handler in self._transaction_handlers
+                              if transaction_handler.can_prepare_commit()]
+        if any(not transaction_handler.prepare_commit() for transaction_handler in prepare_commit_trs):
             # Prepare commit has failed. We rollback.
             self.rollback()
 
         # All commit have been prepared.
         # We commit first those who can't be prepared.
-        no_prepare_commit_trs = [ transaction_handler for transaction_handler in self._transaction_handlers
-                                  if not transaction_handler.can_prepare_commit() ]
+        no_prepare_commit_trs = [transaction_handler for transaction_handler in self._transaction_handlers
+                                 if not transaction_handler.can_prepare_commit()]
         for transaction_handler in no_prepare_commit_trs:
             transaction_handler.commit()
 
@@ -130,7 +132,7 @@ class PipelineTransactionHandler(TransactionHandler):
     """ A pipeline transaction is a transaction that does its pipelined actions directly.
         There is no commit possible in this transaction. If we must rollback, the pipeline is done backward to undo things.
     """
-    #TODO: add a function to retrieve the name of the pipeline
+    # TODO: add a function to retrieve the name of the pipeline
 
     def __init__(self, actions_pipeline):
         self._actions_pipeline = None

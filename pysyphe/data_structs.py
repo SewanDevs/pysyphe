@@ -43,7 +43,6 @@ class ReferencesDict(MutableMapping):
         def __call__(self):
             return self.refs_dict[self.key]
 
-
     def __init__(self, dic=None):
         self._dict = copy(dic) or {}
 
@@ -103,8 +102,8 @@ class ReversibleList(Iterator):
             StopIteration:
     """
 
-    def __init__(self, l=None, continuous=False):
-        self._list = list(l or [])
+    def __init__(self, list_=None, continuous=False):
+        self._list = list(list_ or [])
         self._list_iterator = iter(self._list)
         self._position = 0
         self._continuous = continuous

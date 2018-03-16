@@ -4,6 +4,7 @@
     Bad re-implementations mandatory in py2 for the mecanism to work.
 """
 
+
 class InstanceMethod(object):
     " A bad re-implementation of instancemethod because in python2 you can't have custom attributes on instancemethod. Useless in python3"
     def __init__(self, func):

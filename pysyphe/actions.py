@@ -19,6 +19,7 @@ except ImportError:
 
 # TODO: add a propery to have the name of an action, for pipeline action too.
 
+
 class Action(object):
     """ An action is an object that knows how to rollback.
         Call do to do the action.
@@ -113,7 +114,7 @@ class Action(object):
         # The only problem comes from _context_managers, so we will recreate a dict with lists
         newone._context_managers = {
             "action": [cm for cm in self._context_managers["action"]],
-            "rollback": [cm for cm in self._context_managers["rollback"]] }
+            "rollback": [cm for cm in self._context_managers["rollback"]]}
         return newone
 
     def simulate(self, *args, **kwargs):
@@ -135,7 +136,7 @@ class Action(object):
             fct = self._rollback_fct
         if isinstance(fct, partial):
             fct = fct.func
-        if not inspect.isfunction( fct ):
+        if not inspect.isfunction(fct):
             return str(fct)
 
         if sys.version_info >= (3, 0):
@@ -291,9 +292,9 @@ class StatefullAction(Action):
         self._check_kwargs_for_action(kwargs)
         # Make a copy of the action before creating and freezing things.
         prepared_action = copy(self)
-        ## Prepare state
+        # Prepare state
         prepared_action._state = ReferencesDict(kwargs)
-        ## Prepare action
+        # Prepare action
         # Using partial because it preserves the name of the function and does not add up to the stacktrace.
         prepared_action._action_fct = partial(prepared_action._action_fct, prepared_action._state)
         # We can't check that all items needed for rollback action are set until action has been done.
@@ -305,7 +306,7 @@ class StatefullAction(Action):
         # Logging should be done at the really beginning and at the really end because other context manager could fail.
         # So we set logging to be the outermost context manager. It must be at the end of the context manager list.
         prepared_action.add_context_manager("action", type(self)._logging_do)
-        ## Prepare rollback
+        # Prepare rollback
         if prepared_action._rollback_fct:
             prepared_action._rollback_fct = partial(prepared_action._rollback_fct, prepared_action._state)
             prepared_action.add_context_manager("rollback", type(self)._logging_undo)
@@ -386,12 +387,10 @@ class StatefullAction(Action):
         self.info_streamer.send_info(action_name=self._get_action_name(action_type), state=self._state, simul=True)
 
 
-
 def statefull_action(state_items):
     def StatefullActionConstructor(fct):
         return StatefullAction(action_state_items=state_items, action_fct=fct)
     return StatefullActionConstructor
-
 
 
 class UnitAction(StatefullAction):
