@@ -5,3 +5,5 @@ __pycache__
 pysyphe.egg-info
 AUTHORS
 ChangeLog
+.coverage
+reports
