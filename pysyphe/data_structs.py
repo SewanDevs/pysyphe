@@ -9,7 +9,7 @@
 from copy import copy
 from collections import Iterator, MutableMapping
 
-from .exceptions import TransacslashKeyError
+from .exceptions import PysypheKeyError
 
 
 # TODO: add an utility function to browse references dicts to be sure there is no loop.
@@ -53,7 +53,7 @@ class ReferencesDict(MutableMapping):
         try:
             value = self._dict[key]
         except KeyError:
-            raise TransacslashKeyError("{} is missing in ReferencesDict: {}".format(key, self))
+            raise PysypheKeyError("{} is missing in ReferencesDict: {}".format(key, self))
         if isinstance(value, ReferencesDict.RefValue):
             value = value()
         return value

@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 
 
-class TransacslashException(Exception):
+class PysypheException(Exception):
     pass
 
 
-class TransacslashKeyError(TransacslashException):
+class PysypheKeyError(PysypheException):
     """ Thrown when a key is missing in a ReferencesDict """
     pass
 
 
-class ActionException(TransacslashException):
+class ActionException(PysypheException):
     pass

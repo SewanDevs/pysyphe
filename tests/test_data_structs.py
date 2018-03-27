@@ -3,7 +3,7 @@
 import pytest
 
 from pysyphe.data_structs import ReferencesDict, ReversibleList
-from pysyphe.exceptions import TransacslashKeyError
+from pysyphe.exceptions import PysypheKeyError
 
 
 class test_ReferencesDict(object):
@@ -46,13 +46,13 @@ class test_ReferencesDict(object):
 
     @staticmethod
     def test_get_missing():
-        with pytest.raises(TransacslashKeyError):
+        with pytest.raises(PysypheKeyError):
             refs_dict = ReferencesDict()
             _ = refs_dict["a"]
 
     @staticmethod
     def test_get_ref_missing():
-        with pytest.raises(TransacslashKeyError):
+        with pytest.raises(PysypheKeyError):
             refs_dict = ReferencesDict()
             refs_dict2 = ReferencesDict({"a": refs_dict.ref_to("a")})
             _ = refs_dict2["a"]
