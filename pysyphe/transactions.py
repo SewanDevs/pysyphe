@@ -3,6 +3,8 @@
 import traceback
 from contextlib import contextmanager
 
+from .exceptions import TransactionException, WeAreDoomedException
+
 
 class TransactionHandler(object):
     """ Two phase commit handler.
@@ -65,53 +67,71 @@ class TransactionsManager(object):
     def __init__(self):
         self._transaction_handlers = []
         self._begun = False
-        self._rollback_tried = False
+        self._already_rollbacked = False
+        self.exceptions_encountered = []
 
     def add_transaction_handler(self, transaction_handler):
         if self._begun:
             # Can't add transaction handler after transaction have began
-            raise Exception("Transactions have begun!")
+            raise TransactionException("Transactions have begun!")
         self._transaction_handlers.append(transaction_handler)
 
     @contextmanager
     def begin(self):
-        self._rollback_tried = False
+        self._already_rollbacked = False
+        self.exceptions_encountered = []
         self._begun = True
         for transaction_handler in self._transaction_handlers:
             transaction_handler.begin()
         try:
             yield
         except Exception as e:
-            # TODO: Find a solution to do not print exception if it has already been printed by actionLogger.
-            print("Transactions failed: {}".format(traceback.format_exc()))
-            if self._rollback_tried:
-                # "raise WeAreDoomed from" en python3
-                # Don't know what we really could do in this case ?!?
-                raise Exception("We are doomed.")
+            # Exception may have been already added to self.exceptions_encountered
+            # if rollback has been already called for example.
+            if not self.exceptions_encountered or self.exceptions_encountered[-1][0] != e:
+                self.exceptions_encountered.append((e, traceback.format_exc(e)))
+            if self._already_rollbacked:
+                # "raise WeAreDoomedException from" en python3
+                exceptions_encountered = [traceback_txt for exc, traceback_txt in self.exceptions_encountered]
+                raise WeAreDoomedException("Transactions already rollbacked", exceptions_encountered)
             else:
                 try:
                     self.rollback()
-                except Exception as e:
-                    # TODO: Implement a raise from because it's really usefull for debugging.
-                    raise Exception("We are doomed: {}".format(e))
+                except Exception as rlb_e:
+                    # rlb_e should have already been added to self._exceptions_encountered.
+                    if not self.exceptions_encountered or self.exceptions_encountered[-1][0] != rlb_e:
+                        self.exceptions_encountered.append((rlb_e, traceback.format_exc(rlb_e)))
+                    exceptions_encountered = [traceback_txt for exc, traceback_txt in self.exceptions_encountered]
+                    raise WeAreDoomedException("Transactions rollbacking failed.", exceptions_encountered)
             raise
 
     def execute(self):
+        """ Will call execute on all transaction handlers """
         if not self._begun:
-            raise Exception("Transactions have not begun!")
+            raise TransactionException("Transactions have not begun!")
         for transaction_handler in self._transaction_handlers:
             transaction_handler.execute()
 
     def rollback(self):
+        """ Will call rollback on all transaction handlers. All exceptions encountered during rollbacks will be saved in
+            self.exceptions_encountered and last exception will be re-raised. So, all rollbacks are called even if one failed.
+        """
         if not self._begun:
-            raise Exception("Transactions have not begun!")
-        self._rollback_tried = True
+            raise TransactionException("Transactions have not begun!")
+        self._already_rollbacked = True
+        last_exc = None
         for transaction_handler in self._transaction_handlers:
-            transaction_handler.rollback()
+            try:
+                transaction_handler.rollback()
+            except Exception as e:
+                self.exceptions_encountered.append((e, traceback.format_exc(e)))
+                last_exc = e
+        if last_exc:
+            raise last_exc
 
     def commit(self):
         if not self._begun:
-            raise Exception("Transactions have not begun!")
+            raise TransactionException("Transactions have not begun!")
         # Two phase commit.
         # Prepare commit for all transactions.
         prepare_commit_trs = [transaction_handler for transaction_handler in self._transaction_handlers
@@ -119,16 +139,16 @@ class TransactionsManager(object):
         if any(not transaction_handler.prepare_commit() for transaction_handler in prepare_commit_trs):
             # Prepare commit has failed. We rollback.
             self.rollback()
-
+            return
         # All commit have been prepared.
         # We commit first those who can't be prepared.
         no_prepare_commit_trs = [transaction_handler for transaction_handler in self._transaction_handlers
                                  if not transaction_handler.can_prepare_commit()]
         for transaction_handler in no_prepare_commit_trs:
             transaction_handler.commit()
-
         for transaction_handler in prepare_commit_trs:
             transaction_handler.commit()
+        # FYI: since commit are done inside the begin context managing, if a commit fails, even the last, rollback will be done.
 
 
 class PipelineTransactionHandler(TransactionHandler):
