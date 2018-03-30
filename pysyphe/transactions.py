@@ -157,9 +157,10 @@ class PipelineTransactionHandler(TransactionHandler):
     """
     # TODO: add a function to retrieve the name of the pipeline
 
-    def __init__(self, actions_pipeline):
+    def __init__(self, actions_pipeline=None):
         self._actions_pipeline = None
-        self.actions_pipeline = actions_pipeline  # Will call property setter.
+        if actions_pipeline:
+            self.actions_pipeline = actions_pipeline  # Will call property setter.
 
     @property
     def actions_pipeline(self):
@@ -171,6 +172,12 @@ class PipelineTransactionHandler(TransactionHandler):
         # To reduce stack trace deepness.
         self.execute = self.actions_pipeline.do
         self.rollback = self.actions_pipeline.undo
+
+    def execute(self):
+        raise TransactionException("No actions pipeline defined")
+
+    def rollback(self):
+        raise TransactionException("No actions pipeline defined")
 
     def can_prepare_commit(self):
         # Since a pipeline transaction does not do commit, the prepare-commit->commit phase is reliable
