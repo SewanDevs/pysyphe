@@ -84,6 +84,20 @@ class TestTransactionsManager(object):
             trm.rollback()
 
     @staticmethod
+    def test_rollback_exceptions():
+        trm = TransactionsManager()
+        trh1 = TransactionHandlerMock({"rollback": MagicMock(side_effect=Exception)})
+        trh2 = TransactionHandlerMock({"rollback": MagicMock(side_effect=Exception)})
+        trm.add_transaction_handler(trh1)
+        trm.add_transaction_handler(trh2)
+        with pytest.raises(Exception):
+            with trm.begin():
+                trm.rollback()
+        assert trh1.rollback.called
+        assert trh2.rollback.called
+        assert len(trm.exceptions_encountered) == 2
+
+    @staticmethod
     def test_begin_exception():
         trm = TransactionsManager()
         trh1 = TransactionHandlerMock()
@@ -114,6 +128,7 @@ class TestTransactionsManager(object):
         with pytest.raises(WeAreDoomedException):
             with trm.begin():
                 raise Exception("I KILL YOU !")
+        assert len(trm.exceptions_encountered) == 2
 
     @staticmethod
     def test_commit():
