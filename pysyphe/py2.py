@@ -6,7 +6,8 @@
 
 
 class InstanceMethod(object):
-    " A bad re-implementation of instancemethod because in python2 you can't have custom attributes on instancemethod. Useless in python3"
+    """ A bad re-implementation of instancemethod because in python2 you can't have custom attributes on instancemethod.
+        Useless in python3 """
     def __init__(self, func):
         self.func = func
 
@@ -15,7 +16,8 @@ class InstanceMethod(object):
 
 
 class StaticMethod(object):
-    " A re-implementation of staticmethod because in python2 you can't have custom attributes on staticmethod. Useless in python3"
+    """ A re-implementation of staticmethod because in python2 you can't have custom attributes on staticmethod.
+        Useless in python3 """
     def __init__(self, func):
         self.func = func
 

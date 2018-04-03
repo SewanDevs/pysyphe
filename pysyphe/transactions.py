@@ -89,7 +89,7 @@ class TransactionsManager(object):
             # Exception may have been already added to self.exceptions_encountered
             # if rollback has been already called for example.
             if not self.exceptions_encountered or self.exceptions_encountered[-1][0] != e:
-                self.exceptions_encountered.append((e, traceback.format_exc(e)))
+                self.exceptions_encountered.append((e, traceback.format_exc()))
             if self._already_rollbacked:
                 # "raise WeAreDoomedException from" en python3
                 exceptions_encountered = [traceback_txt for exc, traceback_txt in self.exceptions_encountered]
@@ -100,7 +100,7 @@ class TransactionsManager(object):
                 except Exception as rlb_e:
                     # rlb_e should have already been added to self._exceptions_encountered.
                     if not self.exceptions_encountered or self.exceptions_encountered[-1][0] != rlb_e:
-                        self.exceptions_encountered.append((rlb_e, traceback.format_exc(rlb_e)))
+                        self.exceptions_encountered.append((rlb_e, traceback.format_exc()))
                     exceptions_encountered = [traceback_txt for exc, traceback_txt in self.exceptions_encountered]
                     raise WeAreDoomedException("Transactions rollbacking failed.", exceptions_encountered)
             raise
@@ -124,7 +124,7 @@ class TransactionsManager(object):
             try:
                 transaction_handler.rollback()
             except Exception as e:
-                self.exceptions_encountered.append((e, traceback.format_exc(e)))
+                self.exceptions_encountered.append((e, traceback.format_exc()))
                 last_exc = e
         if last_exc:
             raise last_exc
