@@ -17,7 +17,29 @@ try:
 except ImportError:
     from .py3 import nested
 
-# TODO: add a propery to have the name of an action, for pipeline action too.
+
+def _format_fct_name(fct, action=None):
+    # TODO: currently, for _rollback_fct, the class name is missing....
+    # TODO: everything here is a bit messy. _class added by AddClassToCallable is necessary but this
+    # code needs to know the existence of this AddClassToCallable, it is not very clean...
+    # And action is needed for _class that makes this function looks like a method...
+    if isinstance(fct, partial):
+        fct = fct.func
+    if not inspect.isfunction(fct):
+        return str(fct)
+    if sys.version_info >= (3, 0):
+        name = fct.__qualname__.replace('<locals>.', '')
+    else:
+        if hasattr(action, "_class"):
+            fct._class = action._class  # _class added by AddClassToCallable
+        if hasattr(fct, "_class"):
+            # Thanks to ActionsClass metaclass
+            name = '{}.{}'.format(fct._class.__name__, fct.__name__)
+        else:
+            name = fct.__name__
+    if fct.__globals__["__name__"] != "__main__":
+        name = '{}.{}'.format(fct.__globals__["__name__"], name)
+    return name
 
 
 class Action(object):
@@ -55,7 +77,7 @@ class Action(object):
                 rollback_fct (function) The function that will be called in undo(). It shoulds take no param.
         """
         self._context_managers = {"action": [], "rollback": []}
-        self._names = {"action": [], "rollback": []}
+        self._names = {"action": "", "rollback": ""}
         self.info_streamer = InfoStreamer()  # InfoStreamer does nothing actually.
         self._action_fct = action_fct
         self._rollback_fct = rollback_fct
@@ -80,7 +102,13 @@ class Action(object):
         if action_side not in self._names.keys():
             raise ActionException("Wrong action type ({}). Available: {}"
                                   .format(action_side, ", ".join(self._names.keys())))
-        return self._names[action_side]
+        if self._names[action_side]:
+            return self._names[action_side]
+        # No name is defined actually, We will generate a qualified name on the fly for the function
+        if action_side == "action":
+            return _format_fct_name(self._action_fct, self)
+        if action_side == "rollback":
+            return _format_fct_name(self._rollback_fct, self)
 
     def set_name(self, action_side, value):
         if action_side not in self._names.keys():
@@ -152,35 +180,6 @@ class Action(object):
             But the internal state, if any, will be changed as if the action was done """
         # no internal state
         pass
-
-    def _get_action_name(self, action_side):
-        # TODO: Generate action names when defining _action and rollback_action to give
-        # possibility to change action name afterwards. See global TODO about action name.
-        # TODO: currently, for _rollback_fct, the class name is missing....
-        # TODO: everything here is a bit messy. _class added by AddClassToCallable is necessary but this
-        # code needs to know the existence of this AddClassToCallable, it is not very clean...
-        if action_side == "action":
-            fct = self._action_fct
-        else:
-            fct = self._rollback_fct
-        if isinstance(fct, partial):
-            fct = fct.func
-        if not inspect.isfunction(fct):
-            return str(fct)
-
-        if sys.version_info >= (3, 0):
-            name = fct.__qualname__.replace('<locals>.', '')
-        else:
-            if hasattr(self, "_class") and action_side == "action":
-                fct._class = self._class  # _class added by AddClassToCallable
-            if hasattr(fct, "_class"):
-                # Thanks to ActionsClass metaclass
-                name = '{}.{}'.format(fct._class.__name__, fct.__name__)
-            else:
-                name = fct.__name__
-        if fct.__globals__["__name__"] != "__main__":
-            name = '{}.{}'.format(fct.__globals__["__name__"], name)
-        return name
 
 
 class StatefullAction(Action):
@@ -306,7 +305,7 @@ class StatefullAction(Action):
                 return decorated_fct
             else:
                 return InstanceMethod(decorated_fct)
-        # We can use rollback_action like a decorator a directly like a classic method.
+        # We can use rollback_action like a decorator or directly like a classic method.
         if fct:
             return decorator(fct)
         else:
@@ -381,7 +380,7 @@ class StatefullAction(Action):
 
     @contextmanager
     def _logging_do(self):
-        action_name = self._get_action_name("action")
+        action_name = self.get_name("action")
         self.info_streamer.send_info(action_name=action_name, state=self._state, begin=True)
         try:
             yield
@@ -393,8 +392,8 @@ class StatefullAction(Action):
 
     @contextmanager
     def _logging_undo(self):
-        rollback_action_name = self._get_action_name("rollback_action")
-        action_name = self._get_action_name("action")
+        rollback_action_name = self.get_name("rollback")
+        action_name = self.get_name("action")
         self.info_streamer.send_info(action_name=rollback_action_name, state=self._state,
                                      rollback_of=action_name, begin=True)
         try:
@@ -413,7 +412,7 @@ class StatefullAction(Action):
         # Warning. /!\ The state after the rollback may be different from the state before the action...
         # Re-doing action with the the after-rollback-state may be dangerous.
         self._state.update(after_state or {})
-        self.info_streamer.send_info(action_name=self._get_action_name(action_side), state=self._state, simul=True)
+        self.info_streamer.send_info(action_name=self.get_name(action_side), state=self._state, simul=True)
 
 
 def statefull_action(state_items):
@@ -441,7 +440,7 @@ class UnitAction(StatefullAction):
 
     def get_prepared_action(self, **kwargs):
         if not self._rollback_fct:
-            raise ActionException('Rollback action is not defined for {}'.format(self._get_action_name("action")))
+            raise ActionException('Rollback action is not defined for {}'.format(self.get_name("action")))
         prepared_action = super(UnitAction, self).get_prepared_action(**kwargs)
         # As commented in __init__, we will hide the undo method until action has been done:
         prepared_action._undo_hidden = prepared_action.undo
@@ -537,7 +536,7 @@ class ActionsPipeline(Action):
             done_action_name = action_already_done[0]
             # We may consider action as a friend class of actionPipeline or choose a better way to access the action name:
             # TODO: add the name property !
-            action_name = action._get_action_name("action")
+            action_name = action.get_name("action")
             if done_action_name != action_name:
                 # If the pipeline was partially done and then rollbacked, the actions_already_done may be some of the
                 # actions and then a part of the corresponding rollbacks. Next action already done may be a rollback action name
@@ -559,7 +558,7 @@ class ActionsPipeline(Action):
             self._actions_pipeline.reverse()
             for action_already_done, action in zip(actions_already_done[nb_action_simulated:], self._actions_pipeline):
                 done_action_name = action_already_done[0]
-                action_name = action._get_action_name("rollback")
+                action_name = action.get_name("rollback")
                 if done_action_name != action_name:
                     raise ActionException("Next action already done does not match next action in this pipeline: {} != {}"
                                           .format(done_action_name, action_name))

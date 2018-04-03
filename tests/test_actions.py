@@ -6,7 +6,7 @@ from copy import copy
 from contextlib import contextmanager
 from mock import MagicMock
 
-from pysyphe.actions import Action, StatefullAction, statefull_action, UnitAction, unit_action, ActionsPipeline
+from pysyphe.actions import Action, StatefullAction, statefull_action, UnitAction, unit_action, ActionsPipeline, _format_fct_name
 from pysyphe.exceptions import ActionException
 from pysyphe.streamers import InfoStreamer
 from pysyphe.data_structs import ReferencesDict
@@ -32,6 +32,13 @@ class SharedContextManager(object):
         return cm
 
 
+# TODO: write more tests for format_fct_name
+def test__format_fct_name():
+    def yolo():
+        pass
+    assert _format_fct_name(yolo)
+
+
 class TestUnitAction(object):
     @staticmethod
     def test_init():
@@ -40,6 +47,36 @@ class TestUnitAction(object):
     @staticmethod
     def test_init_2():
         assert Action(lambda: 10, lambda: -10)
+
+    @staticmethod
+    def test_name():
+        a = Action(lambda: 10)
+        a.name = "yolo"
+        assert a.name == "yolo"
+
+    @staticmethod
+    def test_rollback_name():
+        a = Action(lambda: 10)
+        a.rollback_name = "yolo"
+        assert a.rollback_name == "yolo"
+
+    @staticmethod
+    def test_get_name_bad_side():
+        with pytest.raises(ActionException):
+            Action().get_name("bad_side")
+
+    @staticmethod
+    def test_set_name_bad_side():
+        with pytest.raises(ActionException):
+            Action().set_name("bad_side", "osef")
+
+    @staticmethod
+    @pytest.mark.parametrize("action_side", ["action", "rollback"])
+    def test_get_name_not_set(monkeypatch, action_side):
+        format_fct_name_mock = MagicMock()
+        monkeypatch.setattr("pysyphe.actions._format_fct_name", format_fct_name_mock)
+        Action().get_name(action_side)
+        assert format_fct_name_mock.called
 
     @staticmethod
     def test_do_nothing():
@@ -102,6 +139,11 @@ class TestUnitAction(object):
         assert action.rollback_context_manager(context_manager_mock)
 
     @staticmethod
+    def test_add_context_manager_bad_side():
+        with pytest.raises(ActionException):
+            Action().add_context_manager("bad_side", "osef")
+
+    @staticmethod
     def test_set_info_streamer_none():
         with pytest.raises(ActionException):
             Action().set_info_streamer(None)
@@ -120,14 +162,6 @@ class TestUnitAction(object):
     @staticmethod
     def test_simulate():
         Action(lambda: 10, lambda: -10).simulate()
-
-    # TODO: Write more test for this !
-    @staticmethod
-    def test__get_action_name():
-        def yolo(action):
-            pass
-        action = StatefullAction(action_fct=yolo)
-        assert action._get_action_name("action")
 
 
 class TestUnitStateFullAction(object):
@@ -279,7 +313,7 @@ class TestUnitStateFullAction(object):
 
     @staticmethod
     def test__logging_do(monkeypatch):
-        monkeypatch.setattr(StatefullAction, "_get_action_name", MagicMock())
+        monkeypatch.setattr(StatefullAction, "get_name", MagicMock())
         send_info_mock = MagicMock()
         monkeypatch.setattr(InfoStreamer, "send_info", send_info_mock)
         action = StatefullAction()
@@ -289,7 +323,7 @@ class TestUnitStateFullAction(object):
 
     @staticmethod
     def test__logging_do_exception(monkeypatch):
-        monkeypatch.setattr(StatefullAction, "_get_action_name", MagicMock())
+        monkeypatch.setattr(StatefullAction, "get_name", MagicMock())
         send_info_mock = MagicMock()
         monkeypatch.setattr(InfoStreamer, "send_info", send_info_mock)
         action = StatefullAction()
@@ -302,7 +336,7 @@ class TestUnitStateFullAction(object):
 
     @staticmethod
     def test__logging_undo(monkeypatch):
-        monkeypatch.setattr(StatefullAction, "_get_action_name", MagicMock())
+        monkeypatch.setattr(StatefullAction, "get_name", MagicMock())
         send_info_mock = MagicMock()
         monkeypatch.setattr(InfoStreamer, "send_info", send_info_mock)
         action = StatefullAction()
@@ -312,7 +346,7 @@ class TestUnitStateFullAction(object):
 
     @staticmethod
     def test__logging_undo_exception(monkeypatch):
-        monkeypatch.setattr(StatefullAction, "_get_action_name", MagicMock())
+        monkeypatch.setattr(StatefullAction, "get_name", MagicMock())
         send_info_mock = MagicMock()
         monkeypatch.setattr(InfoStreamer, "send_info", send_info_mock)
         action = StatefullAction()
@@ -340,7 +374,7 @@ class TestUnitStateFullAction(object):
         after_state = {"a": 10}
         action.simulate("action", after_state)
         after_rollback_state = {"a": 0}
-        action.simulate("rollback_action", after_rollback_state)
+        action.simulate("rollback", after_rollback_state)
         assert dict(action.state) == after_rollback_state
 
     @staticmethod
@@ -616,7 +650,7 @@ class TestUnitActionsPipeline(object):
         action2 = Action(shared_result.gen_action("b"), shared_result.gen_action("d"))
         ap.append(action1)
         ap.append(action2)
-        action1_name = action1._get_action_name("action")
+        action1_name = action1.get_name("action")
         ap.simulate_until([(action1_name, {})])
         ap.do()
         ap.undo()
@@ -630,9 +664,9 @@ class TestUnitActionsPipeline(object):
         action2 = Action(shared_result.gen_action("b"), shared_result.gen_action("d"))
         ap.append(action1)
         ap.append(action2)
-        action1_name = action1._get_action_name("action")
-        action2_name = action2._get_action_name("action")
-        action2_rollback_name = action2._get_action_name("rollback")
+        action1_name = action1.get_name("action")
+        action2_name = action2.get_name("action")
+        action2_rollback_name = action2.get_name("rollback")
         ap.simulate_until([(action1_name, {}), (action2_name, {}), (action2_rollback_name, {})])
         ap.undo()
         assert shared_result.result == "c"
@@ -654,9 +688,10 @@ class TestUnitActionsPipeline(object):
         action2 = Action(shared_result.gen_action("b"), shared_result.gen_action("d"))
         ap.append(action1)
         ap.append(action2)
-        action1_name = action1._get_action_name("action")
-        action1_rollback_name = action1._get_action_name("rollback")
-        ap.simulate_until([(action1_name, {}), (action1_rollback_name, {})])
+        # Mandatory to redefine names unless they all have the same name and simulate can't work fine.
+        action1.set_name("action", "action1")
+        action1.set_name("rollback", "rollback1")
+        ap.simulate_until([("action1", {}), ("rollback1", {})])
         ap.undo()
         assert shared_result.result == ""
 
@@ -693,8 +728,6 @@ def complex_pipeline(complex_actions):
 
 def test_actions_pipeline(complex_pipeline):
     ap, results, _ = complex_pipeline
-    from pysyphe.streamers import HumanReadableActionsLogger
-    ap.set_info_streamer(HumanReadableActionsLogger())
     ap.do()
     ap.undo()
     assert results == [
