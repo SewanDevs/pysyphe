@@ -33,6 +33,7 @@ tox2.7:
   stage: test
   before_script:
     - pip install -r requirements.txt
+    - pip install -r tests/requirements.txt
   script:
     - tox
   artifacts:
@@ -50,6 +51,7 @@ tox3.6:
   stage: test
   before_script:
     - pip install -r requirements.txt
+    - pip install -r tests/requirements.txt
   script:
     - tox
   artifacts:
