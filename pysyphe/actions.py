@@ -51,13 +51,42 @@ class Action(object):
 
     def __init__(self, action_fct=None, rollback_fct=None):
         """ Attributes:
-                action_fct (function) the function that will be called in do(). It shoulds take no param.
-                rollback_fct (function) the function that will be called in undo(). It shoulds take no param.
+                action_fct (function) The function that will be called in do(). It shoulds take no param.
+                rollback_fct (function) The function that will be called in undo(). It shoulds take no param.
         """
         self._context_managers = {"action": [], "rollback": []}
+        self._names = {"action": [], "rollback": []}
         self.info_streamer = InfoStreamer()  # InfoStreamer does nothing actually.
         self._action_fct = action_fct
         self._rollback_fct = rollback_fct
+
+    @property
+    def name(self):
+        return self.get_name("action")
+
+    @name.setter
+    def name(self, value):
+        self.set_name("action", value)
+
+    @property
+    def rollback_name(self):
+        return self.get_name("rollback")
+
+    @rollback_name.setter
+    def rollback_name(self, value):
+        self.set_name("rollback", value)
+
+    def get_name(self, action_side):
+        if action_side not in self._names.keys():
+            raise ActionException("Wrong action type ({}). Available: {}"
+                                  .format(action_side, ", ".join(self._names.keys())))
+        return self._names[action_side]
+
+    def set_name(self, action_side, value):
+        if action_side not in self._names.keys():
+            raise ActionException("Wrong action type ({}). Available: {}"
+                                  .format(action_side, ", ".join(self._names.keys())))
+        self._names[action_side] = value
 
     def do(self):
         if not self._action_fct:
@@ -75,7 +104,7 @@ class Action(object):
         with nested(*ctx_managers):
             return self._rollback_fct()
 
-    def add_context_manager(self, action_type, context_manager, inner=False):
+    def add_context_manager(self, action_side, context_manager, inner=False):
         """ Context managers are nested, so the last context manager added will be the first entered
             and the last exited, i.e. the outermost one.
             Set inner to True, if you want the context manager to be the innermost one.
@@ -83,13 +112,13 @@ class Action(object):
             context_manager must be a callable (has __call__) that takes an action and returns a context manager.
             Use the @contextmanager to do that easily.
         """
-        if action_type not in self._context_managers.keys():
+        if action_side not in self._context_managers.keys():
             raise ActionException("Wrong action type ({}). Available: {}"
-                                  .format(action_type, ", ".join(self._context_managers.keys())))
+                                  .format(action_side, ", ".join(self._context_managers.keys())))
         if inner:
-            self._context_managers[action_type].insert(0, context_manager)
+            self._context_managers[action_side].insert(0, context_manager)
         else:
-            self._context_managers[action_type].append(context_manager)
+            self._context_managers[action_side].append(context_manager)
 
     def action_context_manager(self, context_manager):
         self.add_context_manager("action", context_manager)
@@ -124,13 +153,13 @@ class Action(object):
         # no internal state
         pass
 
-    def _get_action_name(self, action_type):
+    def _get_action_name(self, action_side):
         # TODO: Generate action names when defining _action and rollback_action to give
         # possibility to change action name afterwards. See global TODO about action name.
         # TODO: currently, for _rollback_fct, the class name is missing....
         # TODO: everything here is a bit messy. _class added by AddClassToCallable is necessary but this
         # code needs to know the existence of this AddClassToCallable, it is not very clean...
-        if action_type == "action":
+        if action_side == "action":
             fct = self._action_fct
         else:
             fct = self._rollback_fct
@@ -142,7 +171,7 @@ class Action(object):
         if sys.version_info >= (3, 0):
             name = fct.__qualname__.replace('<locals>.', '')
         else:
-            if hasattr(self, "_class") and action_type == "action":
+            if hasattr(self, "_class") and action_side == "action":
                 fct._class = self._class  # _class added by AddClassToCallable
             if hasattr(fct, "_class"):
                 # Thanks to ActionsClass metaclass
@@ -376,7 +405,7 @@ class StatefullAction(Action):
             self.info_streamer.send_info(action_name=rollback_action_name, state=self._state, end=True, exc=e)
             raise e
 
-    def simulate(self, action_type, after_state):
+    def simulate(self, action_side, after_state):
         # if this state have references to others states, since these other states have already been simulated, the value
         # can't change anymore and the correct values are in after_state.
         # But if other states have reference to this state we should keep the binding, so we have to keep the same object and
@@ -384,7 +413,7 @@ class StatefullAction(Action):
         # Warning. /!\ The state after the rollback may be different from the state before the action...
         # Re-doing action with the the after-rollback-state may be dangerous.
         self._state.update(after_state or {})
-        self.info_streamer.send_info(action_name=self._get_action_name(action_type), state=self._state, simul=True)
+        self.info_streamer.send_info(action_name=self._get_action_name(action_side), state=self._state, simul=True)
 
 
 def statefull_action(state_items):
@@ -421,11 +450,11 @@ class UnitAction(StatefullAction):
         prepared_action.add_context_manager("action", type(self)._enables_rollback, inner=True)
         return prepared_action
 
-    def simulate(self, action_type, after_state):
-        if action_type == "action":
+    def simulate(self, action_side, after_state):
+        if action_side == "action":
             with self._enables_rollback():
                 pass
-        super(UnitAction, self).simulate(action_type, after_state)
+        super(UnitAction, self).simulate(action_side, after_state)
 
 
 def unit_action(state_items):
@@ -469,7 +498,7 @@ class ActionsPipeline(Action):
         # TODO: why not a is_prepared attribute ? No, because action preparation is an internal concept of satefullaction...
         # Finally: StatefullActionFactory is maybe the more correct solution. But it address a problem that does not really exist,
         # A developer error that will be automatically detected at runtime. The only usefull thing would be to have something that
-        # tels to the dev that the action is not prepared and not just something like "action takes 1 arg" in the do method.
+        # tells to the dev that the action is not prepared and not just something like "action takes 1 arg" in the do method.
         if not hasattr(action, "do") or not hasattr(action, "undo") or not hasattr(action, "set_info_streamer"):
             raise ActionException("action should inherit from Action.")
         self._actions_pipeline.append(action)
