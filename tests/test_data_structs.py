@@ -48,14 +48,14 @@ class test_ReferencesDict(object):
     def test_get_missing():
         with pytest.raises(PysypheKeyError):
             refs_dict = ReferencesDict()
-            _ = refs_dict["a"]
+            refs_dict["a"]
 
     @staticmethod
     def test_get_ref_missing():
         with pytest.raises(PysypheKeyError):
             refs_dict = ReferencesDict()
             refs_dict2 = ReferencesDict({"a": refs_dict.ref_to("a")})
-            _ = refs_dict2["a"]
+            refs_dict2["a"]
 
     @staticmethod
     def test_del():

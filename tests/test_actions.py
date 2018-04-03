@@ -142,7 +142,7 @@ class TestUnitStateFullAction(object):
     @staticmethod
     def test_state_fail():
         with pytest.raises(ActionException):
-            _ = StatefullAction().state
+            StatefullAction().state
 
     @staticmethod
     def test_state_write():
@@ -577,7 +577,7 @@ class TestUnitActionsPipeline(object):
         action2 = Action(shared_result.gen_action("b"))
         ap.append(action1)
         ap.append(action2)
-        second_action = ap.actions[1]  # This should have no impact.
+        assert ap.actions[1]  # This should have no impact.
         ap.do()
         assert shared_result.result == "ab"
 
@@ -680,8 +680,8 @@ def complex_pipeline(complex_actions):
     ap = ActionsPipeline()
     ap.append(prep_action)
     ap.append(prep_action_2)
-    if sys.version_info < (3,0):
-        actions_names = ["tests.test_actions.my_action","tests.test_actions.my_action_2",
+    if sys.version_info < (3, 0):
+        actions_names = ["tests.test_actions.my_action", "tests.test_actions.my_action_2",
                          "tests.test_actions.my_action_2_rollback", "tests.test_actions.my_action_rollback"]
     else:
         actions_names = ["tests.test_actions.complex_actions.my_action",
@@ -718,7 +718,7 @@ def test_actions_pipeline_simulate(complex_pipeline):
     ])
     ap.do()
     ap.undo()
-    assert results == [ 2, "Hello", 2, 1, "OOLOLOW" ]
+    assert results == [2, "Hello", 2, 1, "OOLOLOW"]
 
 
 def test_actions_pipeline_simulate_with_rollback(complex_pipeline):
@@ -729,4 +729,4 @@ def test_actions_pipeline_simulate_with_rollback(complex_pipeline):
         (actions[2], {"id": 2})
     ])
     ap.undo()
-    assert results == [ 1, "OOLOLOW" ]
+    assert results == [1, "OOLOLOW"]
