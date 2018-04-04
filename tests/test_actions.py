@@ -831,9 +831,3 @@ def test_Actions_prepare():
 def test_Actions_name():
     # Check name of class is inside the action name
     assert "FakeActions" in FakeActions().fake_action.name
-
-
-
-class InfoStreamerMock(InfoStreamer):
-    def send_info(self, **kwargs):
-        pass
