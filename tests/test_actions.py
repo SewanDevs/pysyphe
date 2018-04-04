@@ -397,6 +397,16 @@ class TestStateFullAction(object):
         assert prepared.do() == 10
 
     @staticmethod
+    def test_get_prepared_action_already_prepared(monkeypatch):
+        monkeypatch.setattr(InfoStreamer, "send_info", MagicMock())
+        monkeypatch.setattr(StatefullAction, "_check_kwargs_for_action", MagicMock())
+        monkeypatch.setattr(StatefullAction, "add_context_manager", MagicMock())
+        action = StatefullAction(["input"], lambda state: state["input"])
+        prepared = action.get_prepared_action(input=10)
+        with pytest.raises(ActionException):
+            prepared.get_prepared_action()
+
+    @staticmethod
     def test_get_prepared_action_rollback(monkeypatch):
         monkeypatch.setattr(InfoStreamer, "send_info", MagicMock())
         monkeypatch.setattr(StatefullAction, "_check_kwargs_for_action", MagicMock())
@@ -722,6 +732,16 @@ class TestActionsPipeline(object):
         ap.append(action1)
         with pytest.raises(ActionException):
             ap.simulate_until([('garbage', {})])
+
+    @staticmethod
+    def test_simulate_until_error_undo():
+        ap = ActionsPipeline()
+        shared_result = SharedResultAction()
+        action1 = Action(shared_result.gen_action("a"), shared_result.gen_action("c"))
+        ap.append(action1)
+        action1_name = action1.get_name("action")
+        with pytest.raises(ActionException):
+            ap.simulate_until([(action1_name, {}), ("garbage", {})])
 
     @staticmethod
     def test_simulate_until_partial():
