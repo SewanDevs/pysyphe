@@ -9,8 +9,6 @@
 from copy import copy
 from collections import Iterator, MutableMapping
 
-from .exceptions import PysypheKeyError
-
 
 # TODO: add an utility function to browse references dicts to be sure there is no loop.
 
@@ -50,10 +48,7 @@ class ReferencesDict(MutableMapping):
         return ReferencesDict.RefValue(self, key)
 
     def __getitem__(self, key):
-        try:
-            value = self._dict[key]
-        except KeyError:
-            raise PysypheKeyError("{} is missing in ReferencesDict: {}".format(key, self))
+        value = self._dict[key]
         if isinstance(value, ReferencesDict.RefValue):
             value = value()
         return value

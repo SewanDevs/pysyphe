@@ -3,10 +3,9 @@
 import pytest
 
 from pysyphe.data_structs import ReferencesDict, ReversibleList
-from pysyphe.exceptions import PysypheKeyError
 
 
-class test_ReferencesDict(object):
+class TestReferencesDict(object):
 
     @staticmethod
     def test_init():
@@ -46,13 +45,13 @@ class test_ReferencesDict(object):
 
     @staticmethod
     def test_get_missing():
-        with pytest.raises(PysypheKeyError):
+        with pytest.raises(KeyError):
             refs_dict = ReferencesDict()
             refs_dict["a"]
 
     @staticmethod
     def test_get_ref_missing():
-        with pytest.raises(PysypheKeyError):
+        with pytest.raises(KeyError):
             refs_dict = ReferencesDict()
             refs_dict2 = ReferencesDict({"a": refs_dict.ref_to("a")})
             refs_dict2["a"]
