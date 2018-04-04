@@ -155,7 +155,6 @@ class PipelineTransactionHandler(TransactionHandler):
     """ A pipeline transaction is a transaction that does its pipelined actions directly.
         There is no commit possible in this transaction. If we must rollback, the pipeline is done backward to undo things.
     """
-    # TODO: add a function to retrieve the name of the pipeline
 
     def __init__(self, actions_pipeline=None):
         self._actions_pipeline = None
@@ -173,11 +172,20 @@ class PipelineTransactionHandler(TransactionHandler):
         self.execute = self.actions_pipeline.do
         self.rollback = self.actions_pipeline.undo
 
+    @property
+    def pipeline_name(self):
+        return self._actions_pipeline.name
+
+    @pipeline_name.setter
+    def pipeline_name(self, value):
+        raise TransactionException("Pipeline name is read only. "
+                                   "You should change the name of the pipeline directly on the pipeline object.")
+
     def execute(self):
-        raise TransactionException("No actions pipeline defined")
+        raise TransactionException("No actions pipeline defined.")
 
     def rollback(self):
-        raise TransactionException("No actions pipeline defined")
+        raise TransactionException("No actions pipeline defined.")
 
     def can_prepare_commit(self):
         # Since a pipeline transaction does not do commit, the prepare-commit->commit phase is reliable

@@ -172,9 +172,10 @@ class TestTransactionsManager(object):
 
 
 class ActionsPipelineMock(object):
-    def __init__(self):
+    def __init__(self, name=None):
         self.do = MagicMock()
         self.undo = MagicMock()
+        self.name = name
 
 
 class TestPipelineTransactionHandler(object):
@@ -188,6 +189,17 @@ class TestPipelineTransactionHandler(object):
         pipeline = ActionsPipelineMock()
         pth.actions_pipeline = pipeline
         assert pth.actions_pipeline == pipeline
+
+    @staticmethod
+    def test_pipeline_name():
+        pth = PipelineTransactionHandler(ActionsPipelineMock("pipeline_name"))
+        assert pth.pipeline_name == "pipeline_name"
+
+    @staticmethod
+    def test_pipeline_name_setter():
+        pth = PipelineTransactionHandler()
+        with pytest.raises(TransactionException):
+            pth.pipeline_name = "pipeline_name"
 
     @staticmethod
     def test_can_prepare_commit():

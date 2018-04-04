@@ -14,9 +14,11 @@ if sys.version_info < (3, 0):
     from pysyphe.py2 import InstanceMethod
 
 
-@contextmanager
-def context_manager_mock(action):
-    yield
+# TODO: write more tests for format_fct_name
+def test__format_fct_name():
+    def yolo():
+        pass
+    assert _format_fct_name(yolo)
 
 
 class SharedContextManager(object):
@@ -30,13 +32,6 @@ class SharedContextManager(object):
             yield
             self.result += after
         return cm
-
-
-# TODO: write more tests for format_fct_name
-def test__format_fct_name():
-    def yolo():
-        pass
-    assert _format_fct_name(yolo)
 
 
 class TestUnitAction(object):
@@ -130,13 +125,13 @@ class TestUnitAction(object):
     def test_action_context_manager(monkeypatch):
         monkeypatch.setattr(Action, "add_context_manager", MagicMock())
         action = Action()
-        assert action.action_context_manager(context_manager_mock)
+        assert action.action_context_manager(MagicMock())
 
     @staticmethod
     def test_rollback_context_manager(monkeypatch):
         monkeypatch.setattr(Action, "add_context_manager", MagicMock())
         action = Action()
-        assert action.rollback_context_manager(context_manager_mock)
+        assert action.rollback_context_manager(MagicMock())
 
     @staticmethod
     def test_add_context_manager_bad_side():
@@ -155,8 +150,8 @@ class TestUnitAction(object):
     @staticmethod
     def test_copy():
         a = Action(lambda: 10, lambda: -10)
-        a.add_context_manager("action", context_manager_mock)
-        a.add_context_manager("rollback", context_manager_mock)
+        a.add_context_manager("action", MagicMock())
+        a.add_context_manager("rollback", MagicMock())
         assert copy(a)
 
     @staticmethod
@@ -171,7 +166,7 @@ class TestUnitStateFullAction(object):
 
     @staticmethod
     def test_init_params():
-        assert StatefullAction(["test_item"], lambda state: 10)
+        assert StatefullAction(["test_item"], lambda state: 10, name="better_name")
 
     @staticmethod
     def test_state_fail():
@@ -264,6 +259,14 @@ class TestUnitStateFullAction(object):
         action = StatefullAction()
         action.rollback_action(fct=lambda state: 10)
         assert action._rollback_fct({}) == 10
+
+    @staticmethod
+    def test_rollback_action_with_name(monkeypatch):
+        monkeypatch.setattr(StatefullAction, "_check_fct", MagicMock())
+        action = StatefullAction(name="better_name")
+        decorator = action.rollback_action(name="better_rollback_name")
+        decorator(lambda state: 10)
+        assert action.rollback_name == "better_rollback_name"
 
     @staticmethod
     def test__check_kwargs_for_action():
@@ -402,13 +405,52 @@ class TestUnitStateFullAction(object):
         prepared = action.get_prepared_action(input=20)
         assert prepared.undo() == 20
 
+    @staticmethod
+    def test_get_prepared_action_twice(monkeypatch):
+        monkeypatch.setattr(InfoStreamer, "send_info", MagicMock())
+        monkeypatch.setattr(StatefullAction, "_check_kwargs_for_action", MagicMock())
+        monkeypatch.setattr(StatefullAction, "add_context_manager", MagicMock())
+        action = StatefullAction(["input"], lambda state: state["input"])
+        prepared = action.get_prepared_action(input=20)
+        prepared2 = action.get_prepared_action(input=30)
+        assert prepared.do() == 20
+        assert prepared2.do() == 30
+
+    @staticmethod
+    def test_get_prepared_action_change_name(monkeypatch):
+        monkeypatch.setattr(InfoStreamer, "send_info", MagicMock())
+        monkeypatch.setattr(StatefullAction, "_check_kwargs_for_action", MagicMock())
+        monkeypatch.setattr(StatefullAction, "add_context_manager", MagicMock())
+        action = StatefullAction(["input"], lambda state: 10, name="base_name")
+        prepared = action.get_prepared_action(input=20)
+        prepared.name = "prepared_action_name"
+        assert action.name == "base_name"
+        assert prepared.name == "prepared_action_name"
+
+    @staticmethod
+    def test_get_prepared_action_add_context_manager(monkeypatch):
+        monkeypatch.setattr(InfoStreamer, "send_info", MagicMock())
+        monkeypatch.setattr(StatefullAction, "_check_kwargs_for_action", MagicMock())
+        action = StatefullAction(["input"], lambda state: 10)
+        prepared = action.get_prepared_action(input=20)
+        context_manager_mock = MagicMock()
+        prepared.add_context_manager("action", context_manager_mock)
+        prepared2 = action.get_prepared_action(input=20)
+        context_manager_mock2 = MagicMock()
+        prepared2.add_context_manager("action", context_manager_mock2)
+        prepared.do()
+        assert context_manager_mock.called and not context_manager_mock2.called
+        prepared2.do()
+        assert context_manager_mock.call_count == 1 and context_manager_mock2.called
+
 
 def test_statefull_action():
-    @statefull_action(["input"])
+    @statefull_action(["input"], name="better_name")
     def fct_test(state):
         return state["input"]
 
     assert fct_test({"input": 10}) == 10
+    assert fct_test.name == "better_name"
 
 
 class TestUnitUnitAction(object):
@@ -418,7 +460,7 @@ class TestUnitUnitAction(object):
 
     @staticmethod
     def test_init_params():
-        assert UnitAction(["test_item"], lambda state: 10)
+        assert UnitAction(["test_item"], lambda state: 10, name="better_name")
 
     @staticmethod
     def test__enables_rollback():
@@ -544,7 +586,7 @@ class SharedResultAction(object):
 class TestUnitActionsPipeline(object):
     @staticmethod
     def test_init():
-        assert ActionsPipeline()
+        assert ActionsPipeline("pipeline_name")
 
     @staticmethod
     def test_append_bad():

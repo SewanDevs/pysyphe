@@ -166,12 +166,13 @@ class Action(object):
             raise ActionException("Info streamer must have a method send_info.")
 
     def __copy__(self):
-        newone = type(self)()
+        newone = type(self)()  # We are reimplementing copy, we can't use it :)
         newone.__dict__.update(self.__dict__)
-        # The only problem comes from _context_managers, so we will recreate a dict with lists
+        # The only problem comes from the dicts.
         newone._context_managers = {
             "action": [cm for cm in self._context_managers["action"]],
             "rollback": [cm for cm in self._context_managers["rollback"]]}
+        newone._names = {"action": self._names["action"], "rollback": self._names["rollback"]}
         return newone
 
     def simulate(self, *args, **kwargs):
@@ -255,7 +256,7 @@ class StatefullAction(Action):
         # ABC
     """
 
-    def __init__(self, action_state_items=None, action_fct=None):
+    def __init__(self, action_state_items=None, action_fct=None, name=None):
         self._action_state_items = action_state_items or []
         self._rollback_state_items = []
         # State will be initialized during the action preparation.
@@ -264,6 +265,7 @@ class StatefullAction(Action):
         if action_fct:
             self._check_fct(action_fct)
         super(StatefullAction, self).__init__(action_fct=action_fct)
+        self.name = name
 
     @property
     def state(self):
@@ -290,7 +292,7 @@ class StatefullAction(Action):
             raise ActionException('Action is not defined')
         return self._action_fct(state)
 
-    def rollback_action(self, state_items=None, fct=None):
+    def rollback_action(self, state_items=None, fct=None, name=None):
         self._rollback_state_items = state_items or []
 
         def decorator(decorated_fct):
@@ -298,6 +300,7 @@ class StatefullAction(Action):
                 raise ActionException("Rollback action already defined.")
             self._check_fct(decorated_fct)
             self._rollback_fct = decorated_fct
+            self.rollback_name = name
             # Returning the function for the original decorated rollback function to be still usable as a function.
             # But it is a problem for the AddClassToCallable thing because of python2 instancemethod that can't have custom attrs.
             # Sorry for that:
@@ -415,9 +418,9 @@ class StatefullAction(Action):
         self.info_streamer.send_info(action_name=self.get_name(action_side), state=self._state, simul=True)
 
 
-def statefull_action(state_items):
+def statefull_action(state_items, name=None):
     def StatefullActionConstructor(fct):
-        return StatefullAction(action_state_items=state_items, action_fct=fct)
+        return StatefullAction(action_state_items=state_items, action_fct=fct, name=name)
     return StatefullActionConstructor
 
 
@@ -427,8 +430,8 @@ class UnitAction(StatefullAction):
         Use unit_action decorator to create one.
     """
 
-    def __init__(self, action_state_items=None, action_fct=None):
-        super(UnitAction, self).__init__(action_state_items, action_fct)
+    def __init__(self, action_state_items=None, action_fct=None, name=None):
+        super(UnitAction, self).__init__(action_state_items, action_fct, name)
         # To handle the atomicity of the action, we will prevent a prepared action to rollback
         # unless it has first successfully done the action. To do so, we will hide undo method using this attribute.
         self._undo_hidden = None
@@ -456,9 +459,9 @@ class UnitAction(StatefullAction):
         super(UnitAction, self).simulate(action_side, after_state)
 
 
-def unit_action(state_items):
+def unit_action(state_items, name=None):
     def UnitActionConstructor(fct):
-        return UnitAction(action_state_items=state_items, action_fct=fct)
+        return UnitAction(action_state_items=state_items, action_fct=fct, name=name)
     return UnitActionConstructor
 
 
@@ -467,7 +470,7 @@ class ActionsPipeline(Action):
         And you can add callbacks like other actions.
     """
 
-    def __init__(self):
+    def __init__(self, name=None):
         # Here, _action_fct and _rollback_fct are defined as methods in the class.
         # But Action constructor sets _action_fct and _rollback_fct, so we need to give the methods to the constructor.
         # TODO: It may be a good idea that the fact the action is defined is handled without the fact that it equals to None.
@@ -476,6 +479,8 @@ class ActionsPipeline(Action):
         self._actions_pipeline = ReversibleList()
         # Keep a pointer to all actions if we need to access them without moving forward in the pipeline.
         self._actions_list = list()
+        self.name = name
+        self.rollback_name = name  # Better to have the same name than the generic one for a pipeline
 
     @property
     def actions(self):
@@ -512,10 +517,12 @@ class ActionsPipeline(Action):
             action.set_info_streamer(info_streamer)
 
     def _action_fct(self):
+        # TODO: send to info streamer the name of the begining pipeline.
         for action in self._actions_pipeline:
             action.do()
 
     def _rollback_fct(self):
+        # TODO: send to info streamer the name of the begining pipeline.
         self._actions_pipeline.reverse()
         try:
             for action in self._actions_pipeline:
