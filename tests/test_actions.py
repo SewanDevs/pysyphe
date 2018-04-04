@@ -819,14 +819,18 @@ class FakeActions(Actions):
     def fake_rollback(state):
         return state["item"]
 
+
 def test_Actions_direct_call_action():
     assert FakeActions().fake_action({"item": 10}) == 10
+
 
 def test_Actions_direct_call_rollback():
     assert FakeActions().fake_rollback({"item": 10}) == 10
 
+
 def test_Actions_prepare():
     assert FakeActions().fake_action.get_prepared_action(item=10)
+
 
 def test_Actions_name():
     # Check name of class is inside the action name

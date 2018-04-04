@@ -5,8 +5,10 @@ from mock import MagicMock
 
 from pysyphe.streamers import InfoStreamer, HumanReadableActionsLogger, ActionsLoggerForSimulation
 
+
 def test_InfoStreamer():
     assert InfoStreamer()
+
 
 @pytest.mark.parametrize("send_info_kwargs", [
     {"action_name": "name", "state": {"value": 10}, "begin": True},
@@ -22,6 +24,7 @@ def test_HumanReadableActionsLogger(monkeypatch, send_info_kwargs):
     streamer = HumanReadableActionsLogger()
     streamer.send_info(**send_info_kwargs)
     assert log_mock.called
+
 
 @pytest.mark.xfail
 @pytest.mark.parametrize("send_info_kwargs", [
