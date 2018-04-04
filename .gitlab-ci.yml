@@ -31,9 +31,6 @@ flake8:
 
 tox2.7:
   stage: test
-  before_script:
-    - pip install -r requirements.txt
-    - pip install -r tests/requirements.txt
   script:
     - tox
   artifacts:
@@ -49,9 +46,6 @@ tox2.7:
 tox3.6:
   image: python:3.6
   stage: test
-  before_script:
-    - pip install -r requirements.txt
-    - pip install -r tests/requirements.txt
   script:
     - tox
   artifacts:
