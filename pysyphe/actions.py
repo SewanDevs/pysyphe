@@ -613,7 +613,7 @@ class AddClassToCallable(type):
 
 
 class Actions(object):
-    __metaclass__ = AddClassToCallable
+    __metaclass__ = AddClassToCallable  # usefull only in python2, because AddClassToCallable is useless when you have __qualname__.
 
 
 def staticaction(action):

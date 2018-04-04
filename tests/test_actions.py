@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from mock import MagicMock
 
 from pysyphe.actions import Action, StatefullAction, statefull_action, UnitAction, unit_action, ActionsPipeline, _format_fct_name
+from pysyphe.actions import Actions, staticaction
 from pysyphe.exceptions import ActionException
 from pysyphe.streamers import InfoStreamer
 from pysyphe.data_structs import ReferencesDict
@@ -34,7 +35,7 @@ class SharedContextManager(object):
         return cm
 
 
-class TestUnitAction(object):
+class TestAction(object):
     @staticmethod
     def test_init():
         assert Action()
@@ -159,7 +160,7 @@ class TestUnitAction(object):
         Action(lambda: 10, lambda: -10).simulate()
 
 
-class TestUnitStateFullAction(object):
+class TestStateFullAction(object):
     @staticmethod
     def test_init():
         assert StatefullAction()
@@ -453,7 +454,7 @@ def test_statefull_action():
     assert fct_test.name == "better_name"
 
 
-class TestUnitUnitAction(object):
+class TestUnitAction(object):
     @staticmethod
     def test_init():
         assert UnitAction()
@@ -583,7 +584,7 @@ class SharedResultAction(object):
         return action_fct
 
 
-class TestUnitActionsPipeline(object):
+class TestActionsPipeline(object):
     @staticmethod
     def test_init():
         assert ActionsPipeline("pipeline_name")
@@ -805,3 +806,34 @@ def test_actions_pipeline_simulate_with_rollback(complex_pipeline):
     ])
     ap.undo()
     assert results == [1, "OOLOLOW"]
+
+
+class FakeActions(Actions):
+    @staticaction
+    @statefull_action(["item"])
+    def fake_action(state):
+        return state["item"]
+
+    @staticaction
+    @fake_action.rollback_action(["item"])
+    def fake_rollback(state):
+        return state["item"]
+
+def test_Actions_direct_call_action():
+    assert FakeActions().fake_action({"item": 10}) == 10
+
+def test_Actions_direct_call_rollback():
+    assert FakeActions().fake_rollback({"item": 10}) == 10
+
+def test_Actions_prepare():
+    assert FakeActions().fake_action.get_prepared_action(item=10)
+
+def test_Actions_name():
+    # Check name of class is inside the action name
+    assert "FakeActions" in FakeActions().fake_action.name
+
+
+
+class InfoStreamerMock(InfoStreamer):
+    def send_info(self, **kwargs):
+        pass
