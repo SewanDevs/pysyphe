@@ -1,3 +1,7 @@
 #Pysyphe
+=======
 
-This project has been created in order to manage transactions and rollback with differents applications.
+[![pipeline status](https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/pipeline.svg)](https://gitlab.priv.sewan.fr/sophia/pysyphe/commits/master)
+[![coverage report](https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/coverage.svg)](https://gitlab.priv.sewan.fr/sophia/pysyphe/commits/master)
+
+Helps you create and manage your own rollbackable transactions.
