@@ -5,7 +5,8 @@ variables:
 
 stages:
   - lint
-  - test
+  - test27
+  - test36
   - analysis
   - build
   - publish
@@ -30,7 +31,7 @@ flake8:
 #################################################################################
 
 tox2.7:
-  stage: test
+  stage: test27
   before_script:
     - pip install -rtests/requirements.txt
   script:
@@ -47,7 +48,7 @@ tox2.7:
 # tests for 2.7 and 3.6 should be done one after the other for coverage merging.
 tox3.6:
   image: python:3.6
-  stage: test
+  stage: test36
   dependencies:
     - tox2.7
   before_script:
