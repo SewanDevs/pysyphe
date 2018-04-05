@@ -37,6 +37,7 @@ tox2.7:
   script:
     - tox -e py27
   artifacts:
+    untracked: true
     paths:
       - reports/
 
