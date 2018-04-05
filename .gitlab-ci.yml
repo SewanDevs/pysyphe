@@ -49,6 +49,8 @@ tox2.7:
 tox3.6:
   image: python:3.6
   stage: test36
+  dependencies:
+    - test27
   before_script:
     - pip install -rtests/requirements.txt
   script:

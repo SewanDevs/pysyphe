@@ -1,4 +1,4 @@
-#Pysyphe
+Pysyphe
 =======
 
 [![pipeline status](https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/pipeline.svg)](https://gitlab.priv.sewan.fr/sophia/pysyphe/commits/master)
