@@ -76,6 +76,12 @@ class TransactionsManager(object):
             raise TransactionException("Transactions have begun!")
         self._transaction_handlers.append(transaction_handler)
 
+    def _add_exception_encoutered(self, exception):
+        # Exception may have been already added to self.exceptions_encountered
+        # if rollback has been already called for example.
+        if not self.exceptions_encountered or self.exceptions_encountered[-1][0] != exception:
+            self.exceptions_encountered.append((exception, traceback.format_exc()))
+
     @contextmanager
     def begin(self):
         self._already_rollbacked = False
@@ -86,23 +92,18 @@ class TransactionsManager(object):
         try:
             yield
         except Exception as e:
-            # Exception may have been already added to self.exceptions_encountered
-            # if rollback has been already called for example.
-            if not self.exceptions_encountered or self.exceptions_encountered[-1][0] != e:
-                self.exceptions_encountered.append((e, traceback.format_exc()))
+            self._add_exception_encoutered(e)
             if self._already_rollbacked:
                 # "raise WeAreDoomedException from" en python3
-                exceptions_encountered = [traceback_txt for exc, traceback_txt in self.exceptions_encountered]
-                raise WeAreDoomedException("Transactions already rollbacked", exceptions_encountered)
+                traceback_encountered = [traceback_txt for _exc, traceback_txt in self.exceptions_encountered]
+                raise WeAreDoomedException("Transactions already rollbacked", traceback_encountered)
             else:
                 try:
                     self.rollback()
                 except Exception as rlb_e:
-                    # rlb_e should have already been added to self._exceptions_encountered.
-                    if not self.exceptions_encountered or self.exceptions_encountered[-1][0] != rlb_e:
-                        self.exceptions_encountered.append((rlb_e, traceback.format_exc()))
-                    exceptions_encountered = [traceback_txt for exc, traceback_txt in self.exceptions_encountered]
-                    raise WeAreDoomedException("Transactions rollbacking failed.", exceptions_encountered)
+                    self._add_exception_encoutered(rlb_e)
+                    traceback_encountered = [traceback_txt for _exc, traceback_txt in self.exceptions_encountered]
+                    raise WeAreDoomedException("Transactions rollbacking failed.", traceback_encountered)
             raise
 
     def execute(self):

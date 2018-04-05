@@ -7,6 +7,16 @@ from pysyphe.transactions import TransactionHandler, TransactionsManager, Pipeli
 from pysyphe.exceptions import TransactionException, WeAreDoomedException
 
 
+def test_TransactionHandler():
+    th = TransactionHandler()
+    th.begin()
+    th.execute()
+    th.can_prepare_commit()
+    th.rollback()
+    th.prepare_commit()
+    th.commit()
+
+
 class TransactionHandlerMock(TransactionHandler):
     def __init__(self, mocks=None):
         mocks = mocks or {}
@@ -34,6 +44,40 @@ class TestTransactionsManager(object):
         with trm.begin():
             with pytest.raises(TransactionException):
                 trm.add_transaction_handler(TransactionHandlerMock())
+
+    @staticmethod
+    def test__add_exception_encoutered():
+        trm = TransactionsManager()
+        try:
+            raise Exception()
+        except Exception as e:
+            trm._add_exception_encoutered(e)
+        assert len(trm.exceptions_encountered) == 1
+
+    @staticmethod
+    def test__add_exception_encoutered_no_duplicates():
+        trm = TransactionsManager()
+        try:
+            try:
+                raise Exception()
+            except Exception as e:
+                trm._add_exception_encoutered(e)
+        except Exception as e:
+            trm._add_exception_encoutered(e)
+        assert len(trm.exceptions_encountered) == 1
+
+    @staticmethod
+    def test__add_exception_encoutered_no_missing():
+        trm = TransactionsManager()
+        try:
+            raise Exception()
+        except Exception as e:
+            trm._add_exception_encoutered(e)
+        try:
+            raise Exception()
+        except Exception as e:
+            trm._add_exception_encoutered(e)
+        assert len(trm.exceptions_encountered) == 2
 
     @staticmethod
     def test_begin():
