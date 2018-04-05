@@ -33,7 +33,7 @@ flake8:
 tox2.7:
   stage: test27
   before_script:
-    - pip install -rtests/requirements
+    - pip install -rtests/requirements.txt
   script:
     - tox -e py27
   artifacts:
@@ -50,7 +50,7 @@ tox3.6:
   image: python:3.6
   stage: test36
   before_script:
-    - pip install -rtests/requirements
+    - pip install -rtests/requirements.txt
   script:
     - tox -e py36
   artifacts:
