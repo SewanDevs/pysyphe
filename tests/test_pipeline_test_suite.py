@@ -9,7 +9,6 @@ from pysyphe.streamers import InfoStreamer
 from pysyphe.pipeline_test_suite import PipelineTestSuite
 
 
-# /!\ DISCLAIMER /!\ Sorry, but you can't call this test partially, you have to call all tests from TestPipelineTestSuite.
 # Principle of this test: we will make a two-actions-long pipeline and use the infostreamer to know what was executed/rollbacked.
 
 
@@ -54,19 +53,10 @@ def pipeline_gen():
 
 
 @pytest.fixture(scope="module")
-def module_monkeypatch():
-    monkeypatch = MonkeyPatch()
-    yield monkeypatch
-    monkeypatch.undo()
-
-
-@pytest.fixture(scope="module")
-def validate_test(module_monkeypatch):
-    # With a two-long pipeline, there is three tests: one complete, and one that makes each action fail.
-    success_checker_mock = MagicMock(return_value=True)
-    module_monkeypatch.setattr(PipelineTestSuite, "success_checker", success_checker_mock)
+def validate_test():
     yield
     # Tests has been done, we can validate now.
+    # With a two-long pipeline, there is three tests: one complete, and one that makes each action fail.
     # PipelineTestSuite replace an action of the pipeline by a fake action (that does not call the infostreamer).
     complete_test_steps = [
         ("pipeline", "begin"),
@@ -108,11 +98,20 @@ def validate_test(module_monkeypatch):
     assert complete_test_steps in done_steps
     assert partial1_test_steps in done_steps
     assert partial2_test_steps in done_steps
-    assert success_checker_mock.call_count == 6  # twice per test.
 
 
+# /!\ DISCLAIMER /!\ Sorry, but you can't call TestPipelineTestSuite partially, you have to call all tests.
 @pytest.mark.usefixtures("validate_test")
 class TestPipelineTestSuite(PipelineTestSuite):
     @staticmethod
     def pipeline_creator():
         return pipeline_gen()
+
+
+def test_skip_if_not_clean(monkeypatch):
+    skip_mock = MagicMock()
+    monkeypatch.setattr("pytest.skip", skip_mock)
+    monkeypatch.setattr(PipelineTestSuite, "success_checker", MagicMock(return_value=False))
+    # fixture are generator. Need to call next on it for the body to be executed.
+    next(PipelineTestSuite().pipeline_fixture())
+    assert skip_mock.called
