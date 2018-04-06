@@ -8,9 +8,10 @@ from pysyphe.actions import statefull_action, ActionsPipeline
 from pysyphe.streamers import InfoStreamer
 from pysyphe.pipeline_test_suite import PipelineTestSuite
 
-# /!\ DISCLAIMER /!\ Sorry, but you can't call this test partially, you have to call all tests from TestPipelineTestSuite.
 
+# /!\ DISCLAIMER /!\ Sorry, but you can't call this test partially, you have to call all tests from TestPipelineTestSuite.
 # Principle of this test: we will make a two-actions-long pipeline and use the infostreamer to know what was executed/rollbacked.
+
 
 class InfoStreamerMock(InfoStreamer):
     def __init__(self):
