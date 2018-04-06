@@ -2,7 +2,6 @@
 
 import pytest
 from mock import MagicMock
-from _pytest.monkeypatch import MonkeyPatch
 
 from pysyphe.actions import statefull_action, ActionsPipeline
 from pysyphe.streamers import InfoStreamer
