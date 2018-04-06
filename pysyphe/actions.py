@@ -383,28 +383,25 @@ class StatefullAction(Action):
 
     @contextmanager
     def _logging_do(self):
-        action_name = self.get_name("action")
-        self.info_streamer.send_info(action_name=action_name, state=self._state, begin=True)
+        self.info_streamer.send_info(action_name=self.name, state=self._state, begin=True)
         try:
             yield
-            self.info_streamer.send_info(action_name=action_name, state=self._state, end=True)
+            self.info_streamer.send_info(action_name=self.name, state=self._state, end=True)
         except Exception as e:
             # TODO: remove some levels of exception traceback to see exception from the point of view of the action function
-            self.info_streamer.send_info(action_name=action_name, state=self._state, end=True, exc=e)
+            self.info_streamer.send_info(action_name=self.name, state=self._state, end=True, exc=e)
             raise e
 
     @contextmanager
     def _logging_undo(self):
-        rollback_action_name = self.get_name("rollback")
-        action_name = self.get_name("action")
-        self.info_streamer.send_info(action_name=rollback_action_name, state=self._state,
-                                     rollback_of=action_name, begin=True)
+        self.info_streamer.send_info(action_name=self.rollback_name, state=self._state,
+                                     rollback_of=self.name, begin=True)
         try:
             yield
-            self.info_streamer.send_info(action_name=rollback_action_name, state=self._state, end=True)
+            self.info_streamer.send_info(action_name=self.rollback_name, state=self._state, end=True)
         except Exception as e:
             # TODO: remove some levels of exception traceback to see exception from the point of view of the rollback function
-            self.info_streamer.send_info(action_name=rollback_action_name, state=self._state, end=True, exc=e)
+            self.info_streamer.send_info(action_name=self.rollback_name, state=self._state, end=True, exc=e)
             raise e
 
     def simulate(self, action_side, after_state):
@@ -466,7 +463,7 @@ def unit_action(state_items, name=None):
 
 
 class ActionsPipeline(Action):
-    """ ActionPipeline is an action that execute a pipeline of action with do and the rollback of every action done with undo.
+    """ ActionsPipeline is an action that execute a pipeline of action with do and the rollback of every action done with undo.
         And you can add callbacks like other actions.
     """
 
@@ -517,12 +514,18 @@ class ActionsPipeline(Action):
             action.set_info_streamer(info_streamer)
 
     def _action_fct(self):
-        # TODO: send to info streamer the name of the begining pipeline.
-        for action in self._actions_pipeline:
-            action.do()
+        if self.name:
+            self.info_streamer.send_info(action_name=self.name, begin=True)
+        try:
+            for action in self._actions_pipeline:
+                action.do()
+        finally:
+            if self.name:
+                self.info_streamer.send_info(action_name=self.name, end=True)
 
     def _rollback_fct(self):
-        # TODO: send to info streamer the name of the begining pipeline.
+        if self.name:
+            self.info_streamer.send_info(action_name=self.rollback_name, rollback_of=self.name, begin=True)
         self._actions_pipeline.reverse()
         try:
             for action in self._actions_pipeline:
@@ -530,6 +533,8 @@ class ActionsPipeline(Action):
         finally:
             # Re-reverse to be able to redo actions if needed.
             self._actions_pipeline.reverse()
+            if self.name:
+                self.info_streamer.send_info(action_name=self.rollback_name, end=True)
 
     def simulate_until(self, actions_already_done):
         """ Move pipeline forward without doing actions.
@@ -541,10 +546,7 @@ class ActionsPipeline(Action):
         for action_already_done, action in zip(actions_already_done, self._actions_pipeline):
             # Checks that action_name is correct.
             done_action_name = action_already_done[0]
-            # We may consider action as a friend class of actionPipeline or choose a better way to access the action name:
-            # TODO: add the name property !
-            action_name = action.get_name("action")
-            if done_action_name != action_name:
+            if done_action_name != action.name:
                 # If the pipeline was partially done and then rollbacked, the actions_already_done may be some of the
                 # actions and then a part of the corresponding rollbacks. Next action already done may be a rollback action name
                 # we can't know here if the next done_action_name is the next rollback name or is an error.
@@ -565,22 +567,19 @@ class ActionsPipeline(Action):
             self._actions_pipeline.reverse()
             for action_already_done, action in zip(actions_already_done[nb_action_simulated:], self._actions_pipeline):
                 done_action_name = action_already_done[0]
-                action_name = action.get_name("rollback")
-                if done_action_name != action_name:
+                if done_action_name != action.rollback_name:
                     raise ActionException("Next action already done does not match next action in this pipeline: {} != {}"
-                                          .format(done_action_name, action_name))
+                                          .format(done_action_name, action.rollback_name))
                 after_state = action_already_done[1]
                 action.simulate("rollback", after_state=after_state)
                 nb_rollback_simulated += 1
-
             # List will be in the state corresponding to the actions already done.
             # To retry or rollback, one just needs to call do or undo on pipeline.
             self._actions_pipeline.reverse()
-
             if nb_action_simulated + nb_rollback_simulated < len(actions_already_done):
                 # Not all actions were simulated...
                 next_not_simulated = actions_already_done[nb_action_simulated + nb_rollback_simulated]
-                # TODO: with nb_action_simulated and nb_rollback_simulated, we can determine the kind of error the
+                # TODO: with nb_action_simulated and nb_rollback_simulated, we could determine the kind of error the
                 # developer has done.
                 raise ActionException("Not all action done were simulated. Can't simulate: {}".format(next_not_simulated[0]))
 

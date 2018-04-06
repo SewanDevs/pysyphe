@@ -657,6 +657,15 @@ class TestActionsPipeline(object):
         assert shared_result.result == "ab"
 
     @staticmethod
+    def test__action_with_log(monkeypatch):
+        ap = ActionsPipeline(name="pipeline")
+        send_info_mock = MagicMock()
+        monkeypatch.setattr(ap.info_streamer, "send_info", send_info_mock)
+        ap.append(Action(lambda: 10))
+        ap.do()
+        assert send_info_mock.call_count == 2
+
+    @staticmethod
     def test_actions_are_accessible():
         ap = ActionsPipeline()
         shared_result = SharedResultAction()
@@ -694,6 +703,15 @@ class TestActionsPipeline(object):
             pass
         ap.undo()
         assert shared_result.result == "adc"
+
+    @staticmethod
+    def test__rollback_action_with_log(monkeypatch):
+        ap = ActionsPipeline(name="pipeline")
+        send_info_mock = MagicMock()
+        monkeypatch.setattr(ap.info_streamer, "send_info", send_info_mock)
+        ap.append(Action(lambda: 10, lambda: 10))
+        ap.undo()
+        assert send_info_mock.call_count == 2
 
     @staticmethod
     def test_simulate_until():
