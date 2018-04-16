@@ -873,3 +873,25 @@ def test_Actions_prepare():
 def test_Actions_name():
     # Check name of class is inside the action name
     assert "FakeActions" in FakeActions().fake_action.name
+
+
+def test_classic_context_manager():
+    ## Purpose of this test is to check that classic context manager works too
+    action = Action(action_fct=lambda: 10)
+    @action.action_context_manager
+    class ContextManager(object):
+        def __init__(self, action):
+            self.action = action
+
+        def __enter__(self):
+            # May use self.action
+            pass
+
+        def __exit__(self, *args, **kwargs):
+            # May use self.action
+            pass
+    ContextManager.__enter__ = MagicMock()
+    ContextManager.__exit__ = MagicMock()
+    action.do()
+    assert ContextManager.__enter__.called
+    assert ContextManager.__exit__.called
