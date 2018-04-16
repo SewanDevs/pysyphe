@@ -19,6 +19,7 @@ except ImportError:
 
 
 def _format_fct_name(fct, action=None):
+    """ Return the fully qualified name of a function. """
     # TODO: currently, for _rollback_fct, the class name is missing....
     # TODO: everything here is a bit messy. _class added by AddClassToCallable is necessary but this
     # code needs to know the existence of this AddClassToCallable, it is not very clean...
@@ -46,6 +47,9 @@ class Action(object):
     """ An action is an object that knows how to rollback.
         Call do to do the action.
         Call undo to rollback the action.
+        The action and it's rollback are functions without parameters defined at the Action construction.
+        Every action has a name. The default name of an action is the qualified name of the action function.
+        You may change the name of the action. An action has a rollback name too that follow the same rules.
 
         You can add callbacks with context managers ! You have access to the action object inside the context manager.
         @contextmanager
@@ -66,15 +70,17 @@ class Action(object):
                     action.do()
 
         But if you catch the exception and don't reraise it, the action may be considered successful.
+        Be carefull that context managers defined with a generator can't be used twice.
 
         To get info on what will be done, set a streamer objet with set_info_streamer.
         A streamer is an objet that exposes one method: send_info. See streamers.py.
     """
 
     def __init__(self, action_fct=None, rollback_fct=None):
-        """ Attributes:
-                action_fct (function) The function that will be called in do(). It shoulds take no param.
-                rollback_fct (function) The function that will be called in undo(). It shoulds take no param.
+        """ Contruct an action.
+        Args:
+            action_fct (function): The function that will be called in do(). It shoulds take no param.
+            rollback_fct (function): The function that will be called in undo(). It shoulds take no param.
         """
         self._context_managers = {"action": [], "rollback": []}
         self._names = {"action": "", "rollback": ""}
@@ -99,6 +105,13 @@ class Action(object):
         self.set_name("rollback", value)
 
     def get_name(self, action_side):
+        """ Return the name of the action or the name of the rollback action. If name has not been modifed, it will be the
+        qualified name of the functions.
+        Args:
+            action_side (str): "action" or "rollback".
+        Returns:
+            name of the action/rollback.
+        """
         if action_side not in self._names.keys():
             raise ActionException("Wrong action type ({}). Available: {}"
                                   .format(action_side, ", ".join(self._names.keys())))
@@ -111,12 +124,20 @@ class Action(object):
             return _format_fct_name(self._rollback_fct, self)
 
     def set_name(self, action_side, value):
+        """ Modify the name of the action/rollback.
+        Args:
+            action_side (str): "action" or "rollback".
+            value: the name of the action/rollback
+        """
         if action_side not in self._names.keys():
             raise ActionException("Wrong action type ({}). Available: {}"
                                   .format(action_side, ", ".join(self._names.keys())))
         self._names[action_side] = value
 
     def do(self):
+        """ Method to call to execute the action.
+        It will call all the context managers in order and then call the action_fct.
+        """
         if not self._action_fct:
             raise ActionException("Can't do: no action function defined.")
         ctx_managers = [ctx_manager_gen(self) for ctx_manager_gen in reversed(self._context_managers["action"])]
@@ -125,6 +146,9 @@ class Action(object):
             return self._action_fct()
 
     def undo(self):
+        """ Method to call to rollback the action.
+        It will call all the context managers in order and then call the rollback_fct.
+        """
         if not self._rollback_fct:
             raise ActionException("Can't undo: no rollback function defined.")
         ctx_managers = [ctx_manager_gen(self) for ctx_manager_gen in reversed(self._context_managers["rollback"])]
@@ -133,12 +157,16 @@ class Action(object):
             return self._rollback_fct()
 
     def add_context_manager(self, action_side, context_manager, inner=False):
-        """ Context managers are nested, so the last context manager added will be the first entered
-            and the last exited, i.e. the outermost one.
-            Set inner to True, if you want the context manager to be the innermost one.
-
-            context_manager must be a callable (has __call__) that takes an action and returns a context manager.
-            Use the @contextmanager to do that easily.
+        """ Add a context manager to the action. A context manager acts as a callback, the __enter__ part is called before the
+        action and the __exit__ part after.
+        Context managers are nested, so the last context manager added will be the first entered and the last exited,
+        i.e. the outermost one. Set inner to True, if you want the context manager to be the innermost one.
+        context_manager must be a callable (has __call__ or __init__) that takes an action and returns a context manager.
+        Use the @contextmanager to do that easily. Be carefull that context managers defined with a generator can't be used twice.
+        Args:
+            action_side (str): "action" or "rollback".
+            context_manager (callable): callable that takes an action and returns a context manager.
+            inner (boolean): True if you want the context manager to be innermost one.
         """
         if action_side not in self._context_managers.keys():
             raise ActionException("Wrong action type ({}). Available: {}"
@@ -149,18 +177,34 @@ class Action(object):
             self._context_managers[action_side].append(context_manager)
 
     def action_context_manager(self, context_manager):
+        """ Set a context manager for the action. This method is usable as a decorator.
+        Args:
+            context_manager (callable): callable that takes an action and returns a context manager.
+        Returns:
+            the given context_manager.
+        """
         self.add_context_manager("action", context_manager)
         # Returning the context_manager for the original context_manager to be still usable as a context_manager
         # if this method is used as a decorator
         return context_manager
 
     def rollback_context_manager(self, context_manager):
+        """ Set a context manager for the rollback. This method is usable as a decorator.
+        Args:
+            context_manager (callable): callable that takes an action and returns a context manager.
+        Returns:
+            the given context_manager.
+        """
         self.add_context_manager("rollback", context_manager)
         # Returning the context_manager for the original context_manager to be still usable as a context_manager
         # if this method is used as a decorator
         return context_manager
 
     def set_info_streamer(self, info_streamer):
+        """ Set an info streamer to have info on what has been done. See streamers.py.
+        Args:
+            info_streamer (InfoStreamer): an object with a send_info method.
+        """
         self.info_streamer = info_streamer
         if not hasattr(self.info_streamer, "send_info"):
             raise ActionException("Info streamer must have a method send_info.")
@@ -176,9 +220,11 @@ class Action(object):
         return newone
 
     def simulate(self, *args, **kwargs):
-        """ Will simulate the action type but without calling it.
-            The _action_fct/_rollback_fct will not be called. Context managers will not be executed.
-            But the internal state, if any, will be changed as if the action was done """
+        """ Will simulate the action but without calling it.
+        The _action_fct/_rollback_fct will not be called. Context managers will not be executed.
+        But the internal state, if any, will be changed as if the action was done.
+        Action is a base class, simulate on an object of type Action will have no effect since it has no internal state.
+        """
         # no internal state
         pass
 
@@ -186,9 +232,9 @@ class Action(object):
 class StatefullAction(Action):
     """ StatefullAction will handle actions that keep a state.
         The state is set at the preparation of the action. It fixes the parameters of the action. The action may modify
-        this state to know what have been done and to keep value for the rollback or for other actions.
+        this state to know what have been done and to keep values for the rollback or for other actions.
 
-        It may be used as a decorator to define the action. Use statefull_action decorator directly.
+        Statefull actions may be used as a decorator to define the action but you should use statefull_action decorator directly.
 
         You must define the items of the state that are mandatory for your action or your rollback.
         And you may save values in the state for other action to read it.
@@ -198,65 +244,81 @@ class StatefullAction(Action):
         function to know what must be undone and the rollback function will be called even if the action has failed (even if the
         action has not been called because of an exception in a context manager.)
 
-        @statefull_action(state_items=["text"])
-        def my_action(state):
-            text = state["text"]
-            state["before_text"] = text[::-1]
-            print(text)
+        Usage:
+        ```
+            @statefull_action(state_items=["text"])
+            def my_action(state):
+                text = state["text"]
+                state["before_text"] = text[::-1]
+                print(text)
 
-        @my_action.rollback_action(state_items=["before_text"])
-        def my_action_rollback(state):
-            text = state["before_text"]
-            print(text)
+            @my_action.rollback_action(state_items=["before_text"])
+            def my_action_rollback(state):
+                text = state["before_text"]
+                print(text)
 
-        @my_action.action_context_manager
-        @contextmanager
-        def say_something_before_my_action(action):
-            print("YOLO ?")
-            yield
-            print("Nope !")
+            @my_action.action_context_manager
+            @contextmanager
+            def say_something_before_my_action(action):
+                print("YOLO ?")
+                yield
+                print("Nope !")
+        ```
 
         A StatefullAction must be prepared to be usable. The preparation will set the parameters of the action, will freeze
         it to be unmodifable and will construct the internal state.
-        The preparation of an action returns a copy of the action. The original object may be prepared many times.
+        The preparation of an action returns a copy of the action. The original action may be prepared many times.
+        Examples:
+        ```
+            >>> # Now that I have an action, I need to prepare it with params:
+            >>> text = "I don't know what I'm doing. I hope someone will clean up my mess!"
+            >>> prepared_action = my_action.get_prepared_action(text=text)
 
-        # Now that I have an action, I need to prepare it with params:
-        prepared_action = my_action.get_prepared_action(text="I don't know what I'm doing. I hope someone will clean up my mess!")
+            >>> prepared_action.do()
+            YOLO ?
+            I don't know what I'm doing. I hope someone will clean up my mess!
+            Nope !
+            >>> prepared_action.undo()
+            !ssem ym pu naelc lliw enoemos epoh I .gniod m'I tahw wonk t'nod I
 
-        prepared_action.do()
-        # YOLO ?
-        # I don't know what I'm doing. I hope someone will clean up my mess!
-        # Nope !
-        prepared_action.undo()
-        # !ssem ym pu naelc lliw enoemos epoh I .gniod m'I tahw wonk t'nod I
+            >>> # The original decorated function is still usable as a function:
+            >>> my_action({"text": Still works!"})
+            Still works!
+            >>> # The original rollback action is still usable as a function
+            >>> my_action_rollback({"before_text": Still works!"})
+            Still works!
+            >>> # The original contextmanager is still usable as a contextmanager
+            >>> with say_something_before_my_action(None):
+            ...     print("Still works!")
+            YOLO ?
+            Still works!
+            Nope !
+        ```
 
-        # The original decorated function is still usable as a function:
-        my_action({"text": Still works!"})
-        # Still works!
-        # The original rollback action is still usable as a function
-        my_action_rollback({"before_text": Still works!"})
-        # Still works!
-        # The original contextmanager is still usable as a contextmanager
-        with say_something_before_my_action(None):
-            print("Yes")
-        # YOLO ?
-        # yes
-        # Nope !
-
-        A prepared action may use reference to other actions' states to use these other actions' state as a parameters.
-        prepared_action = my_action.get_prepared_action(text="ABC")
-        prepared_action_2 = my_action.get_prepared_action(text=prepared_action.state.ref_to("before_text"))
-        prepared_action.do()
-        # ABC
-        prepared_action_2.do()
-        # CBA
-        prepared_action.undo()
-        # CBA
-        prepared_action_2.undo()
-        # ABC
+        A prepared action may use references to other actions' states to use these other actions' state as a parameters.
+        See data_structs.ReferencesDict. Usefull to chain actions.
+        Examples:
+        ```
+            >>> prepared_action = my_action.get_prepared_action(text="ABC")
+            >>> prepared_action_2 = my_action.get_prepared_action(text=prepared_action.state.ref_to("before_text"))
+            >>> prepared_action.do()
+            ABC
+            >>> prepared_action_2.do()
+            CBA
+            >>> prepared_action.undo()
+            CBA
+            >>> prepared_action_2.undo()
+            ABC
+        ```
     """
 
     def __init__(self, action_state_items=None, action_fct=None, name=None):
+        """ Construct a statefull action.
+        Args:
+            action_state_items (list of string): names of the items that must be in the state before doing the action.
+            action_fct (function): The function that will be called in do(). It shoulds take one param, the state.
+            name (string): Name of the action.
+        """
         self._action_state_items = action_state_items or []
         self._rollback_state_items = []
         # State will be initialized during the action preparation.
@@ -269,15 +331,25 @@ class StatefullAction(Action):
 
     @property
     def state(self):
+        """ Get the state of the action. Usefull to get references to it and give them to another action."""
         if not self._state:
             raise ActionException('You must prepare the action with get_prepared_action before accessing to the state')
         return self._state
 
     @state.setter
     def state(self, value):
+        """ State is read only """
         raise ActionException("State is read only")
 
     def action(self, fct):
+        """ Set the action function.
+        Args:
+            fct (function):  The function that will be called in do(). It shoulds take one param, the state.
+        """
+        # TODO: we can't modify the action state items with this decorator actually...
+        # We could take inspiration from rollback_action.
+        # But it would have the same purpose as statefull_action. Maybe this method is completly useless...
+        # And we should make action_fct mandatory in the constructor.
         if self._action_fct:
             raise ActionException("Action already defined.")
         self._check_fct(fct)
@@ -286,6 +358,10 @@ class StatefullAction(Action):
         return self
 
     def __call__(self, state):
+        """ Call the action_fct with the state.
+        Args:
+            state (dict): A dict with the mandatory state items.
+        """
         if self._state is not None:
             raise ActionException("Can't use action like a function if action has been prepared.")
         if not self._action_fct:
@@ -293,6 +369,15 @@ class StatefullAction(Action):
         return self._action_fct(state)
 
     def rollback_action(self, state_items=None, fct=None, name=None):
+        """ Set the rollback function. Useable as a decorator.
+        Args:
+            action_state_items (list of string): names of the items that must be in the state before doing the rollback.
+            fct (function): The function that will be called in undo(). It shoulds take one param, the state.
+            name (string): name of the rollback.
+        Returns:
+            A decorator if fct is None.
+            The decorated fct if fct is not None.
+        """
         self._rollback_state_items = state_items or []
 
         def decorator(decorated_fct):
@@ -315,6 +400,12 @@ class StatefullAction(Action):
             return decorator
 
     def get_prepared_action(self, **kwargs):
+        """ Get a copy of the action that is ready to be executed with the mandatory state items:
+        Args:
+            kwargs: all the items that are mandatory for the action to be executed (the items in action_state_items)
+        Returns:
+            A copy of the action (StatefullAction)
+        """
         if not self._action_fct:
             raise ActionException('Action is not defined')
         if self._state is not None:
@@ -333,9 +424,10 @@ class StatefullAction(Action):
         # We will use context manager for logging and items checking because it gives the possibility
         # of doing things before and after the self._action and to handle exceptions without increasing the size of the callstack.
         # This context manager will be the innermost one to be sure that other context manager does not do magic with the state.
-        prepared_action.add_context_manager("action", type(self)._checks_store_items_for_rollback, inner=True)
+        prepared_action.add_context_manager("action", type(self)._checks_state_items_for_rollback, inner=True)
         # Logging should be done at the really beginning and at the really end because other context manager could fail.
         # So we set logging to be the outermost context manager. It must be at the end of the context manager list.
+        # TODO: better to have logging into Action.do/undo than as a context manager. Would make set_info_streamer less odd.
         prepared_action.add_context_manager("action", type(self)._logging_do)
         # Prepare rollback
         if prepared_action._rollback_fct:
@@ -366,7 +458,7 @@ class StatefullAction(Action):
             raise ActionException("Superfluous args for the action preparation: {}".format(", ".join(superfluous_args)))
 
     @contextmanager
-    def _checks_store_items_for_rollback(self):
+    def _checks_state_items_for_rollback(self):
         try:
             yield
             # We will only check missing args because items in state after action are not only for rollback
@@ -405,17 +497,29 @@ class StatefullAction(Action):
             raise e
 
     def simulate(self, action_side, after_state):
+        """ Will simulate the action but without calling it.
+        The _action_fct/_rollback_fct will not be called. Context managers will not be executed.
+        But the internal state will be modified to simulate the action effect.
+        Args:
+            action_side (str): "action" or "rollback".
+            after_state (dict): state after the action.
+        """
         # if this state have references to others states, since these other states have already been simulated, the value
         # can't change anymore and the correct values are in after_state.
         # But if other states have reference to this state we should keep the binding, so we have to keep the same object and
         # not recreate a new ReferencesDict.
         # Warning. /!\ The state after the rollback may be different from the state before the action...
-        # Re-doing action with the the after-rollback-state may be dangerous.
+        # Re-doing action with the after-rollback state may be dangerous.
         self._state.update(after_state or {})
         self.info_streamer.send_info(action_name=self.get_name(action_side), state=self._state, simul=True)
 
 
 def statefull_action(state_items, name=None):
+    """ Decorator to create a StateFullAction directly at the definition of the action function.
+    Args:
+        state_items (list of string): names of the items that must be in the state before doing the action.
+        name (string): Name of the action.
+    """
     def StatefullActionConstructor(fct):
         return StatefullAction(action_state_items=state_items, action_fct=fct, name=name)
     return StatefullActionConstructor
@@ -423,11 +527,18 @@ def statefull_action(state_items, name=None):
 
 class UnitAction(StatefullAction):
     """ UnitAction will handle the unit actions: action that are statefull and can't be divided into smaller actions.
-        The action can't be done partially so the rollback is called only if the action was successfull.
-        Use unit_action decorator to create one.
+        A unit action can't be done partially so the rollback is called only if the action was successfull.
+        The rollback is mandatory for a unit action.
+        You should use the unit_action decorator to create a UnitAction.
     """
 
     def __init__(self, action_state_items=None, action_fct=None, name=None):
+        """ Construct a unit action.
+        Args:
+            action_state_items (list of string): names of the items that must be in the state before doing the action.
+            action_fct (function): The function that will be called in do(). It shoulds take one param, the state.
+            name (string): Name of the action.
+        """
         super(UnitAction, self).__init__(action_state_items, action_fct, name)
         # To handle the atomicity of the action, we will prevent a prepared action to rollback
         # unless it has first successfully done the action. To do so, we will hide undo method using this attribute.
@@ -439,6 +550,7 @@ class UnitAction(StatefullAction):
         self.undo = self._undo_hidden
 
     def get_prepared_action(self, **kwargs):
+        """ Prepare the action. See StatefullAction.get_prepared_action. """
         if not self._rollback_fct:
             raise ActionException('Rollback action is not defined for {}'.format(self.get_name("action")))
         prepared_action = super(UnitAction, self).get_prepared_action(**kwargs)
@@ -450,6 +562,7 @@ class UnitAction(StatefullAction):
         return prepared_action
 
     def simulate(self, action_side, after_state):
+        """ Simulate the action. See StatefullAction.simulate. """
         if action_side == "action":
             with self._enables_rollback():
                 pass
@@ -457,17 +570,73 @@ class UnitAction(StatefullAction):
 
 
 def unit_action(state_items, name=None):
+    """ Decorator to create a UnitAction directly at the definition of the action function.
+    Args:
+        state_items (list of string): names of the items that must be in the state before doing the action.
+        name (string): Name of the action.
+    """
     def UnitActionConstructor(fct):
         return UnitAction(action_state_items=state_items, action_fct=fct, name=name)
     return UnitActionConstructor
 
 
 class ActionsPipeline(Action):
-    """ ActionsPipeline is an action that execute a pipeline of action with do and the rollback of every action done with undo.
-        And you can add callbacks like other actions.
+    """ ActionsPipeline is an action that execute a chain of actions. A pipeline of action must be filled with actions. Then
+    calling do, will call do on all the actions in the pipeline in order and calling undo will call undo on all the actions that
+    have already been done.
+    Usage:
+    ```
+        @statefull_action(state_items=["text"])
+        def my_action(state):
+            text = state["text"]
+            state["before_text"] = text[::-1]
+            print(text)
+            raise Exception()
+
+        @my_action.rollback_action(state_items=["before_text"])
+        def my_action_rollback(state):
+            text = state["before_text"]
+            print(text)
+
+        ap = ActionsPipeline()
+        ap.append(my_action.get_prepared_action(text="!llufsseccus saw kcablloR"))
+        ap.append(my_action.get_prepared_action(text="You shouldn't see this"))
+
+        >>> try:
+        ...     ap.do()
+        ... except Exception:
+        ...     ap.undo()
+        !llufsseccus saw kcablloR
+        Rollback was successfull!
+    ```
+
+    You can add callbacks to the pipeline like other actions.
+
+    If you set an info_streamer for the pipeline, the info_streamer will be propagated to all the actions in the pipeline.
+
+    A pipeline may be simulated. You have to give a description of all the actions already done and you will have a pipeline in
+    the state after this actions. The pipeline may be rollbacked then, usefull if the rollback has not been successfully completed
+    the first time. Pipeline like every action send what has been done to an InfoStreamer. The InfoStreamer will log (or else) for you
+    to know what actions have already been done.
+    ```
+        prep_action = my_action.get_prepared_action(text="!llufsseccus saw kcablloR")
+        prep_action.name = "action1"
+        ap = ActionsPipeline()
+        ap.append(prep_action)
+        # Since the state wanted by the simulation is the after_state, it has to contain the before_text also.
+        ap.simulate_until([("action1", {"text": "!llufsseccus saw kcablloR", "before_text": "Rollback was successfull!"})])
+
+        >>> ap.do() # nothing happens
+        >>> ap.undo()
+        Rollback was successfull!
+    ```
     """
 
     def __init__(self, name=None):
+        """ Construct an action pipeline.
+        Args:
+            name (string): name if the pipeline. The default value for this name is bad, you should change it.
+        """
         # Here, _action_fct and _rollback_fct are defined as methods in the class.
         # But Action constructor sets _action_fct and _rollback_fct, so we need to give the methods to the constructor.
         # TODO: It may be a good idea that the fact the action is defined is handled without the fact that it equals to None.
@@ -481,13 +650,20 @@ class ActionsPipeline(Action):
 
     @property
     def actions(self):
+        """ Returns a the list of the actions in the pipeline. Usefull to add a context manager to a specific action or
+        to have the size of the pipeline. """
         return list(self._actions_list)  # return a copy
 
     @actions.setter
     def actions(self, value):
+        """ actions is read only """
         raise ActionException("ActionsPipeline.actions is read-only")
 
     def append(self, action):
+        """ Add an action to end of the pipeline.
+        Args:
+            action (Action): An object with a do and an undo methods.
+        """
         # TODO or not TODO:
         # 1. Currently, if prepared action are linked together but not appended in the correct order,
         # it will not work correctly... We should add some checks that the other actions does not depend
@@ -495,7 +671,7 @@ class ActionsPipeline(Action):
         # Not really usefull because it only prevent development error.
         # 2. Nothing checks that action is prepared and a not-prepared statefull action can't work.
         # But action preparation can't be determined externally.
-        # Maybe we should have a StatefullActionFactory that creates action, it would be better.
+        # Maybe we should have a StatefullActionFactory that creates action, it could be better.
         # TODO: why not a is_prepared attribute ? No, because action preparation is an internal concept of satefullaction...
         # Finally: StatefullActionFactory is maybe the more correct solution. But it address a problem that does not really exist,
         # A developer error that will be automatically detected at runtime. The only usefull thing would be to have something that
@@ -508,6 +684,11 @@ class ActionsPipeline(Action):
         action.set_info_streamer(self.info_streamer)
 
     def set_info_streamer(self, info_streamer):
+        """ Set an info streamer to have info on what has been done. See streamers.py. The info streamer will be propaated to
+        all the actions in the pipeline.
+        Args:
+            info_streamer (InfoStreamer): an object with a send_info method.
+        """
         super(ActionsPipeline, self).set_info_streamer(info_streamer)
         # We wan't all actions in the pipeline to share the same info_streamer
         for action in self._actions_list:
@@ -537,10 +718,13 @@ class ActionsPipeline(Action):
                 self.info_streamer.send_info(action_name=self.rollback_name, end=True)
 
     def simulate_until(self, actions_already_done):
-        """ Move pipeline forward without doing actions.
-            actions_already_done is a list of (action_name, after_state) for the pipeline to be able
-            to rollback correctly.
-            If actions_already_done is longer than the pipeline length, the remaining actions are considered rollbacks action.
+        """ Move pipeline forward without doing actions. In fact, simulate will be called on all the actions in the pipeline in
+        order. After simulation, the pipeline will be able to be rollbacked as if the pipeline was stopped after all the actions
+        already done. If actions_already_done is longer than the pipeline length, the remaining actions are considered rollbacks
+        action. So you can finish the rollback of a partially rollbacked pipeline.
+        Args:
+            actions_already_done (list of (action_name, after_state)): The list of actions that has already been done and that
+                should be simulated and for each one the after state of the action.
         """
         nb_action_simulated = 0
         for action_already_done, action in zip(actions_already_done, self._actions_pipeline):
@@ -612,6 +796,7 @@ class AddClassToCallable(type):
 
 
 class Actions(object):
+    """ Base class to use when defining actions in a class. """
     __metaclass__ = AddClassToCallable  # usefull only in python2, because AddClassToCallable is useless when you have __qualname__.
 
 

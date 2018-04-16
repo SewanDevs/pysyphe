@@ -50,10 +50,6 @@ class ReferencesDict(MutableMapping):
             return self.refs_dict[self.key]
 
     def __init__(self, dic=None):
-        """ Contruct a references dicts.
-        Args:
-            dic: copy contructor
-        """
         self._dict = copy(dic) or {}
 
     def ref_to(self, key):
