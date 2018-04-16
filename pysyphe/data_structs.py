@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    Available data structures:
+Available data structures:
     * ReferencesDict: a dict that holds references to other dicts.
     * ReversibleList: a list that maintain an internal reading position
 """
@@ -15,36 +15,49 @@ from collections import Iterator, MutableMapping
 
 class ReferencesDict(MutableMapping):
     """ Behave like a dict but some (key, value) are references to another ReferencesDict's (key, value).
-        It helps to make links between dicts, usefull when you need up-to-date values.
-        To do this, you need to define some key of the ReferencesDict using another ReferencesDict.
 
-        Example:
-            >>> s1 = ReferencesDict()
-            >>> s2 = ReferencesDict()
-            >>> s1["a"] = 10
-            >>> s2["a"] = s1.ref_to("a")
-            >>> print(s2["a"])
-            10
-            >>> s1["a"] = 20
-            >>> print(s2["a"])
-            20
+    It helps to make links between dicts, usefull when you need up-to-date values.
+    To do this, you need to define some keys of the ReferencesDict using another ReferencesDict.
 
-        Note:
-            If you change a value that was a reference before, you will loose the reference.
+    Examples:
+        >>> s1 = ReferencesDict()
+        >>> s2 = ReferencesDict()
+        >>> s1["a"] = 10
+        >>> s2["a"] = s1.ref_to("a")
+        >>> print(s2["a"])
+        10
+        >>> s1["a"] = 20
+        >>> print(s2["a"])
+        20
+
+    Note:
+        If you change a value that was a reference before, you will loose the reference.
     """
 
     class RefValue(object):
+        """ RefValue is a reference to another dict's value. Call the RefValue to have the up-to-date value."""
         def __init__(self, refs_dict, key):
+            """ Contruct a value that references another dict's value.
+            Args:
+                refs_dict: the dict this object is a reference to.
+                key: the key in refs_dict this object is a reference to.
+            """
             self.refs_dict = refs_dict
             self.key = key
 
         def __call__(self):
+            """ Returns the up-to-date value """
             return self.refs_dict[self.key]
 
     def __init__(self, dic=None):
+        """ Contruct a references dicts.
+        Args:
+            dic: copy contructor
+        """
         self._dict = copy(dic) or {}
 
     def ref_to(self, key):
+        """ Get a reference to a key of this dict. See ReferencesDict.RefValue to see how to use it. """
         return ReferencesDict.RefValue(self, key)
 
     def __getitem__(self, key):
@@ -69,35 +82,44 @@ class ReferencesDict(MutableMapping):
         return str(dict(self))
 
     def ref_keys(self):
-        """ Return list of keys that are refs"""
+        """ Return the list of keys that are refs"""
         return [key for key, value in self._dict.items() if isinstance(value, ReferencesDict.RefValue)]
 
 
 class ReversibleList(Iterator):
     """ A list that can be reversed to return elements already returned but in the opposite order.
-        Example:
-            >>> r = ReversibleList([1,2,3])
-            >>> elems = iter(r)
-            >>> next(elems)
-            1
-            >>> next(elems)
-            2
-            >>> next(elems)
-            3
-            >>> next(elems)
-            StopIteration:
-            >>> elems.reverse()
-            >>> next(elems)
-            3
-            >>> next(elems)
-            2
-            >>> next(elems)
-            1
-            >>> next(elems)
-            StopIteration:
+
+    You can reverse many times to re-read the whole list several times.
+    The list may be a classic iterator that throws StopIteration at the end or be continuous and automatically reverse at the end.
+
+    Examples:
+        >>> r = ReversibleList([1,2,3])
+        >>> elems = iter(r)
+        >>> next(elems)
+        1
+        >>> next(elems)
+        2
+        >>> next(elems)
+        3
+        >>> next(elems)
+        StopIteration:
+        >>> elems.reverse()
+        >>> next(elems)
+        3
+        >>> next(elems)
+        2
+        >>> next(elems)
+        1
+        >>> next(elems)
+        StopIteration:
     """
 
     def __init__(self, list_=None, continuous=False):
+        """ Contruct a reversible list.
+        Args:
+            list_: copy constructor.
+            continuous: to have a continuous list that never ends and never throws StopIteration.
+        """
         self._list = list(list_ or [])
         self._list_iterator = iter(self._list)
         self._position = 0

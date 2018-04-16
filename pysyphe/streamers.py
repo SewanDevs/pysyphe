@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+"""
+Streamers are class that takes infos from actions or pipelines and logs it.
+"""
+
 import logging
 import traceback
 
@@ -8,11 +12,13 @@ logger.setLevel(logging.INFO)
 
 
 class InfoStreamer(object):
+    """ Interface for streamers """
     def send_info(self, **kwargs):
         pass
 
 
 class HumanReadableActionsLogger(InfoStreamer):
+    """ Streamer that logs for humans. """
     def send_info(self, **kwargs):
         log_txt = []
         if "action_name" in kwargs:
@@ -38,6 +44,7 @@ class HumanReadableActionsLogger(InfoStreamer):
 
 
 class ActionsLoggerForSimulation(InfoStreamer):
+    """ Streamer that format logs for further simulation. """
     def send_info(self, **kwargs):
         # TODO: TO BE IMPLEMENTED
         pass
