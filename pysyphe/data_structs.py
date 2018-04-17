@@ -77,6 +77,9 @@ class ReferencesDict(MutableMapping):
     def __str__(self):
         return str(dict(self))
 
+    def __repr__(self):
+        return "ReferencesDict({})".format(str(self))
+
     def ref_keys(self):
         """ Return the list of keys that are refs"""
         return [key for key, value in self._dict.items() if isinstance(value, ReferencesDict.RefValue)]

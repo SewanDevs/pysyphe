@@ -75,6 +75,10 @@ class TestReferencesDict(object):
         assert str(ReferencesDict({"a": 10}))
 
     @staticmethod
+    def test_repr():
+        assert repr(ReferencesDict({"a": 10}))
+
+    @staticmethod
     def test_ref_keys():
         refs_dict = ReferencesDict({"a": 10})
         refs_dict2 = ReferencesDict({"b": 20, "c": refs_dict.ref_to("a")})
