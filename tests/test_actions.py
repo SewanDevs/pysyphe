@@ -287,29 +287,29 @@ class TestStateFullAction(object):
             action._check_kwargs_for_action({"input": 10, "superfluous": 20})
 
     @staticmethod
-    def test__checks_store_items_for_rollback():
+    def test__checks_state_items_for_rollback():
         action = StatefullAction()
         action.rollback_action(["input"], lambda state: 10)
         action._state = {}
-        with action._checks_store_items_for_rollback():
+        with action._checks_state_items_for_rollback():
             action._state["input"] = 10
 
     @staticmethod
-    def test__checks_store_items_for_rollback_failure_missing():
+    def test__checks_state_items_for_rollback_failure_missing():
         action = StatefullAction()
         action.rollback_action(["input"], lambda state: 10)
         action._state = {}
         with pytest.raises(ActionException):
-            with action._checks_store_items_for_rollback():
+            with action._checks_state_items_for_rollback():
                 pass
 
     @staticmethod
-    def test__checks_store_items_for_rollback_failure_exception():
+    def test__checks_state_items_for_rollback_failure_exception():
         action = StatefullAction()
         action.rollback_action(["input"], lambda state: 10)
         action._state = {}
         try:
-            with action._checks_store_items_for_rollback():
+            with action._checks_state_items_for_rollback():
                 raise Exception()
         except Exception:
             pass
@@ -846,33 +846,34 @@ def test_actions_pipeline_simulate_with_rollback(complex_pipeline):
     assert results == [1, "OOLOLOW"]
 
 
-class FakeActions(Actions):
-    @staticaction
-    @statefull_action(["item"])
-    def fake_action(state):
-        return state["item"]
+class TestActions(object):
+    class FakeActions(Actions):
+        @staticaction
+        @statefull_action(["item"])
+        def fake_action(state):
+            return state["item"]
 
-    @staticaction
-    @fake_action.rollback_action(["item"])
-    def fake_rollback(state):
-        return state["item"]
+        @staticaction
+        @fake_action.rollback_action(["item"])
+        def fake_rollback(state):
+            return state["item"]
 
+    @staticmethod
+    def test_Actions_direct_call_action():
+        assert FakeActions().fake_action({"item": 10}) == 10
 
-def test_Actions_direct_call_action():
-    assert FakeActions().fake_action({"item": 10}) == 10
+    @staticmethod
+    def test_Actions_direct_call_rollback():
+        assert FakeActions().fake_rollback({"item": 10}) == 10
 
+    @staticmethod
+    def test_Actions_prepare():
+        assert FakeActions().fake_action.get_prepared_action(item=10)
 
-def test_Actions_direct_call_rollback():
-    assert FakeActions().fake_rollback({"item": 10}) == 10
-
-
-def test_Actions_prepare():
-    assert FakeActions().fake_action.get_prepared_action(item=10)
-
-
-def test_Actions_name():
-    # Check name of class is inside the action name
-    assert "FakeActions" in FakeActions().fake_action.name
+    @staticmethod
+    def test_Actions_name():
+        # Check name of class is inside the action name
+        assert "FakeActions" in FakeActions().fake_action.name
 
 
 def test_classic_context_manager():
@@ -895,3 +896,60 @@ def test_classic_context_manager():
     action.do()
     assert ContextManager.__enter__.called
     assert ContextManager.__exit__.called
+
+
+def test_info_streaming():
+    @statefull_action(["item"])
+    def fake_action(state):
+        state["other"] = state["item"] + 5
+        pass
+
+    @fake_action.rollback_action(["other"])
+    def fake_rollback(state):
+        state["last"] = state["other"] + 5
+        pass
+
+    prep1 = fake_action.get_prepared_action(item=10)
+    prep1.name = "action1"
+    prep1.rollback_name = "rollback1"
+    prep2 = fake_action.get_prepared_action(item=100)
+    prep2.name = "action2"
+    prep2.rollback_name = "rollback2"
+
+    ap = ActionsPipeline()
+    ap.append(prep1)
+    ap.append(prep2)
+    ap.name = "pipeline"
+    ap.rollback_name = "pipeline_rollback"
+
+    streamed_info = []
+    class FakeInfoStreamer(InfoStreamer):
+        def send_info(self, **kwargs):
+            if 'begin' in kwargs:
+                step_type = "begin"
+            if 'end' in kwargs:
+                step_type = "end"
+            if "state" in kwargs:
+                info = (kwargs["action_name"], step_type, dict(kwargs["state"]))
+            else:
+                info = (kwargs["action_name"], step_type)
+            streamed_info.append(info)
+
+    ap.set_info_streamer(FakeInfoStreamer())
+    ap.do()
+    ap.undo()
+
+    assert streamed_info == [
+        ('pipeline', 'begin'),
+        ('action1', 'begin', {"item": 10}),
+        ('action1', 'end', {"item": 10, "other": 15}),
+        ('action2', 'begin', {"item": 100}),
+        ('action2', 'end', {"item": 100, "other": 105}),
+        ('pipeline', 'end'),
+        ('pipeline_rollback', 'begin'),
+        ('rollback2', 'begin', {"item": 100, "other": 105}),
+        ('rollback2', 'end', {"item": 100, "other": 105, "last": 110}),
+        ('rollback1', 'begin', {"item": 10, "other": 15}),
+        ('rollback1', 'end', {"item": 10, "other": 15, "last": 20}),
+        ('pipeline_rollback', 'end'),
+    ]
