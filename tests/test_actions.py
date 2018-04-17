@@ -860,25 +860,26 @@ class TestActions(object):
 
     @staticmethod
     def test_Actions_direct_call_action():
-        assert FakeActions().fake_action({"item": 10}) == 10
+        assert TestActions.FakeActions().fake_action({"item": 10}) == 10
 
     @staticmethod
     def test_Actions_direct_call_rollback():
-        assert FakeActions().fake_rollback({"item": 10}) == 10
+        assert TestActions.FakeActions().fake_rollback({"item": 10}) == 10
 
     @staticmethod
     def test_Actions_prepare():
-        assert FakeActions().fake_action.get_prepared_action(item=10)
+        assert TestActions.FakeActions().fake_action.get_prepared_action(item=10)
 
     @staticmethod
     def test_Actions_name():
         # Check name of class is inside the action name
-        assert "FakeActions" in FakeActions().fake_action.name
+        assert "FakeActions" in TestActions.FakeActions().fake_action.name
 
 
 def test_classic_context_manager():
-    ## Purpose of this test is to check that classic context manager works too
+    # Purpose of this test is to check that classic context manager works too
     action = Action(action_fct=lambda: 10)
+
     @action.action_context_manager
     class ContextManager(object):
         def __init__(self, action):
@@ -923,6 +924,7 @@ def test_info_streaming():
     ap.rollback_name = "pipeline_rollback"
 
     streamed_info = []
+
     class FakeInfoStreamer(InfoStreamer):
         def send_info(self, **kwargs):
             if 'begin' in kwargs:
