@@ -134,16 +134,36 @@ class Action(object):
                                   .format(action_side, ", ".join(self._names.keys())))
         self._names[action_side] = value
 
+    def notify(self, action_side, step, **kwargs):
+        """ Notify what happened to the info streamer
+        Args:
+            action_side (str): "action" or "rollback"
+            step (str): "begin" or "end"
+            kwargs: to add extra info to send.
+        """
+        kwargs["action_name"] = self.get_name(action_side)
+        kwargs[step] = True
+        if action_side == "rollback":
+            kwargs["rollback_of"] = self.get_name("action")
+        self.info_streamer.send_info(**kwargs)
+
     def do(self):
         """ Method to call to execute the action.
         It will call all the context managers in order and then call the action_fct.
         """
         if not self._action_fct:
             raise ActionException("Can't do: no action function defined.")
-        ctx_managers = [ctx_manager_gen(self) for ctx_manager_gen in reversed(self._context_managers["action"])]
-        # In python 3 use contextlib.ExitStack
-        with nested(*ctx_managers):
-            return self._action_fct()
+        self.notify("action", "begin")
+        try:
+            ctx_managers = [ctx_manager_gen(self) for ctx_manager_gen in reversed(self._context_managers["action"])]
+            with nested(*ctx_managers):
+                ret = self._action_fct()
+            self.notify("action", "end")
+            return ret
+        except Exception as exc:
+            # TODO: Maybe remove some levels of exception traceback to see exception from the point of view of the rollback fct.
+            self.notify("action", "end", exc=exc)
+            raise exc
 
     def undo(self):
         """ Method to call to rollback the action.
@@ -151,10 +171,17 @@ class Action(object):
         """
         if not self._rollback_fct:
             raise ActionException("Can't undo: no rollback function defined.")
-        ctx_managers = [ctx_manager_gen(self) for ctx_manager_gen in reversed(self._context_managers["rollback"])]
-        # In python 3 use contextlib.ExitStack
-        with nested(*ctx_managers):
-            return self._rollback_fct()
+        self.notify("rollback", "begin")
+        try:
+            ctx_managers = [ctx_manager_gen(self) for ctx_manager_gen in reversed(self._context_managers["rollback"])]
+            with nested(*ctx_managers):
+                ret = self._rollback_fct()
+            self.notify("rollback", "end")
+            return ret
+        except Exception as exc:
+            # TODO: Maybe remove some levels of exception traceback to see exception from the point of view of the rollback fct.
+            self.notify("rollback", "end", exc=exc)
+            raise exc
 
     def add_context_manager(self, action_side, context_manager, inner=False):
         """ Add a context manager to the action. A context manager acts as a callback, the __enter__ part is called before the
@@ -421,21 +448,17 @@ class StatefullAction(Action):
         prepared_action._action_fct = partial(prepared_action._action_fct, prepared_action._state)
         # We can't check that all items needed for rollback action are set until action has been done.
         # So we will check that in a context manager around the _action.
-        # We will use context manager for logging and items checking because it gives the possibility
+        # We will use context manager for items checking because it gives the possibility
         # of doing things before and after the self._action and to handle exceptions without increasing the size of the callstack.
         # This context manager will be the innermost one to be sure that other context manager does not do magic with the state.
         prepared_action.add_context_manager("action", type(self)._checks_state_items_for_rollback, inner=True)
-        # Logging should be done at the really beginning and at the really end because other context manager could fail.
-        # So we set logging to be the outermost context manager. It must be at the end of the context manager list.
-        # TODO: better to have logging into Action.do/undo than as a context manager. Would make set_info_streamer less odd.
-        prepared_action.add_context_manager("action", type(self)._logging_do)
         # Prepare rollback
         if prepared_action._rollback_fct:
             prepared_action._rollback_fct = partial(prepared_action._rollback_fct, prepared_action._state)
-            prepared_action.add_context_manager("rollback", type(self)._logging_undo)
         else:
             # If no rollback is set, we will set a fake one for undo method to work.
             # And we will not set any logging for this rollback.
+            # TODO:
             prepared_action._rollback_fct = lambda: None
         return prepared_action
 
@@ -473,28 +496,9 @@ class StatefullAction(Action):
             self._state["action_failed"] = True
             raise  # re-raise exception
 
-    @contextmanager
-    def _logging_do(self):
-        self.info_streamer.send_info(action_name=self.name, state=self._state, begin=True)
-        try:
-            yield
-            self.info_streamer.send_info(action_name=self.name, state=self._state, end=True)
-        except Exception as e:
-            # TODO: remove some levels of exception traceback to see exception from the point of view of the action function
-            self.info_streamer.send_info(action_name=self.name, state=self._state, end=True, exc=e)
-            raise e
-
-    @contextmanager
-    def _logging_undo(self):
-        self.info_streamer.send_info(action_name=self.rollback_name, state=self._state,
-                                     rollback_of=self.name, begin=True)
-        try:
-            yield
-            self.info_streamer.send_info(action_name=self.rollback_name, state=self._state, end=True)
-        except Exception as e:
-            # TODO: remove some levels of exception traceback to see exception from the point of view of the rollback function
-            self.info_streamer.send_info(action_name=self.rollback_name, state=self._state, end=True, exc=e)
-            raise e
+    def notify(self, *args, **kwargs):
+        kwargs["state"] = self._state
+        super(StatefullAction, self).notify(*args, **kwargs)
 
     def simulate(self, action_side, after_state):
         """ Will simulate the action but without calling it.
@@ -695,18 +699,10 @@ class ActionsPipeline(Action):
             action.set_info_streamer(info_streamer)
 
     def _action_fct(self):
-        if self.name:
-            self.info_streamer.send_info(action_name=self.name, begin=True)
-        try:
-            for action in self._actions_pipeline:
-                action.do()
-        finally:
-            if self.name:
-                self.info_streamer.send_info(action_name=self.name, end=True)
+        for action in self._actions_pipeline:
+            action.do()
 
     def _rollback_fct(self):
-        if self.name:
-            self.info_streamer.send_info(action_name=self.rollback_name, rollback_of=self.name, begin=True)
         self._actions_pipeline.reverse()
         try:
             for action in self._actions_pipeline:
@@ -714,8 +710,11 @@ class ActionsPipeline(Action):
         finally:
             # Re-reverse to be able to redo actions if needed.
             self._actions_pipeline.reverse()
-            if self.name:
-                self.info_streamer.send_info(action_name=self.rollback_name, end=True)
+
+    def notify(self, *args, **kwargs):
+        # We don't want to log if the pipeline hasn't a name because it would give no usefull info.
+        if self._names["action"] or self._names["rollback"]:
+            super(ActionsPipeline, self).notify(*args, **kwargs)
 
     def simulate_until(self, actions_already_done):
         """ Move pipeline forward without doing actions. In fact, simulate will be called on all the actions in the pipeline in

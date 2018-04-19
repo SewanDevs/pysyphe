@@ -75,12 +75,24 @@ class TestAction(object):
         assert format_fct_name_mock.called
 
     @staticmethod
+    @pytest.mark.parametrize("action_side", ["action", "rollback"])
+    @pytest.mark.parametrize("step", ["begin", "end"])
+    @pytest.mark.parametrize("kwargs", [None, {"extra": 10}])
+    def test_notify(monkeypatch, action_side, step, kwargs):
+        send_info_mock = MagicMock()
+        monkeypatch.setattr(InfoStreamer, "send_info", send_info_mock)
+        kwargs = kwargs or {}
+        Action(lambda: 10, lambda: 10).notify(action_side, step, **kwargs)
+        assert send_info_mock.called
+
+    @staticmethod
     def test_do_nothing():
         with pytest.raises(ActionException):
             Action().do()
 
     @staticmethod
-    def test_do():
+    def test_do(monkeypatch):
+        monkeypatch.setattr(Action, "notify", MagicMock())
         assert Action(lambda: 10).do() == 10
 
     @staticmethod
@@ -89,8 +101,47 @@ class TestAction(object):
             Action().undo()
 
     @staticmethod
-    def test_undo():
+    def test_undo(monkeypatch):
+        monkeypatch.setattr(Action, "notify", MagicMock())
         assert Action(lambda: 10, lambda: -10).undo() == -10
+
+    @staticmethod
+    def test_do_notify(monkeypatch):
+        notif_mock = MagicMock()
+        monkeypatch.setattr(Action, "notify", notif_mock)
+        action = Action(MagicMock())
+        action.do()
+        assert notif_mock.call_count == 2
+
+    @staticmethod
+    def test_do_notify_exception(monkeypatch):
+        notif_mock = MagicMock()
+        monkeypatch.setattr(Action, "notify", notif_mock)
+        action = Action(MagicMock(side_effect=Exception))
+        try:
+            action.do()
+        except Exception:
+            pass
+        assert notif_mock.call_count == 2
+
+    @staticmethod
+    def test_undo_notify(monkeypatch):
+        notif_mock = MagicMock()
+        monkeypatch.setattr(Action, "notify", notif_mock)
+        action = Action(None, MagicMock())
+        action.undo()
+        assert notif_mock.call_count == 2
+
+    @staticmethod
+    def test_undo_notify_exception(monkeypatch):
+        notif_mock = MagicMock()
+        monkeypatch.setattr(Action, "notify", notif_mock)
+        action = Action(None, MagicMock(side_effect=Exception))
+        try:
+            action.undo()
+        except Exception:
+            pass
+        assert notif_mock.call_count == 2
 
     @staticmethod
     @pytest.mark.parametrize("action_type, function_to_call, result", [
@@ -316,50 +367,11 @@ class TestStateFullAction(object):
         assert action._state["action_failed"]
 
     @staticmethod
-    def test__logging_do(monkeypatch):
-        monkeypatch.setattr(StatefullAction, "get_name", MagicMock())
-        send_info_mock = MagicMock()
-        monkeypatch.setattr(InfoStreamer, "send_info", send_info_mock)
-        action = StatefullAction()
-        with action._logging_do():
-            pass
-        assert send_info_mock.call_count == 2
-
-    @staticmethod
-    def test__logging_do_exception(monkeypatch):
-        monkeypatch.setattr(StatefullAction, "get_name", MagicMock())
-        send_info_mock = MagicMock()
-        monkeypatch.setattr(InfoStreamer, "send_info", send_info_mock)
-        action = StatefullAction()
-        try:
-            with action._logging_do():
-                raise Exception()
-        except Exception:
-            pass
-        assert send_info_mock.call_count == 2
-
-    @staticmethod
-    def test__logging_undo(monkeypatch):
-        monkeypatch.setattr(StatefullAction, "get_name", MagicMock())
-        send_info_mock = MagicMock()
-        monkeypatch.setattr(InfoStreamer, "send_info", send_info_mock)
-        action = StatefullAction()
-        with action._logging_undo():
-            pass
-        assert send_info_mock.call_count == 2
-
-    @staticmethod
-    def test__logging_undo_exception(monkeypatch):
-        monkeypatch.setattr(StatefullAction, "get_name", MagicMock())
-        send_info_mock = MagicMock()
-        monkeypatch.setattr(InfoStreamer, "send_info", send_info_mock)
-        action = StatefullAction()
-        try:
-            with action._logging_undo():
-                raise Exception()
-        except Exception:
-            pass
-        assert send_info_mock.call_count == 2
+    def test_notify(monkeypatch):
+        notify_mock = MagicMock()
+        monkeypatch.setattr(Action, "notify", notify_mock)
+        StatefullAction().notify()
+        assert notify_mock.called
 
     @staticmethod
     def test_simulate(monkeypatch):
@@ -657,15 +669,6 @@ class TestActionsPipeline(object):
         assert shared_result.result == "ab"
 
     @staticmethod
-    def test__action_with_log(monkeypatch):
-        ap = ActionsPipeline(name="pipeline")
-        send_info_mock = MagicMock()
-        monkeypatch.setattr(ap.info_streamer, "send_info", send_info_mock)
-        ap.append(Action(lambda: 10))
-        ap.do()
-        assert send_info_mock.call_count == 2
-
-    @staticmethod
     def test_actions_are_accessible():
         ap = ActionsPipeline()
         shared_result = SharedResultAction()
@@ -705,13 +708,18 @@ class TestActionsPipeline(object):
         assert shared_result.result == "adc"
 
     @staticmethod
-    def test__rollback_action_with_log(monkeypatch):
-        ap = ActionsPipeline(name="pipeline")
-        send_info_mock = MagicMock()
-        monkeypatch.setattr(ap.info_streamer, "send_info", send_info_mock)
-        ap.append(Action(lambda: 10, lambda: 10))
-        ap.undo()
-        assert send_info_mock.call_count == 2
+    def test_notify_no_name(monkeypatch):
+        notify_mock = MagicMock()
+        monkeypatch.setattr(Action, "notify", notify_mock)
+        ActionsPipeline().notify()
+        assert not notify_mock.called
+
+    @staticmethod
+    def test_notify(monkeypatch):
+        notify_mock = MagicMock()
+        monkeypatch.setattr(Action, "notify", notify_mock)
+        ActionsPipeline(name="pipeline").notify()
+        assert notify_mock.called
 
     @staticmethod
     def test_simulate_until():
