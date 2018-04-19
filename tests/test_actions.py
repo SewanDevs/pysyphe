@@ -370,8 +370,17 @@ class TestStateFullAction(object):
     def test_notify(monkeypatch):
         notify_mock = MagicMock()
         monkeypatch.setattr(Action, "notify", notify_mock)
-        StatefullAction().notify()
+        StatefullAction().notify("action", "begin")
         assert notify_mock.called
+
+    @staticmethod
+    def test_notify_no_rollback(monkeypatch):
+        notify_mock = MagicMock()
+        monkeypatch.setattr(Action, "notify", notify_mock)
+        act = StatefullAction([], lambda state: 10)
+        prep = act.get_prepared_action()
+        prep.notify("rollback", "begin")
+        assert not notify_mock.called
 
     @staticmethod
     def test_simulate(monkeypatch):

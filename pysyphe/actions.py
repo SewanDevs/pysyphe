@@ -355,6 +355,7 @@ class StatefullAction(Action):
             self._check_fct(action_fct)
         super(StatefullAction, self).__init__(action_fct=action_fct)
         self.name = name
+        self._no_undo_logging = False
 
     @property
     def state(self):
@@ -458,8 +459,8 @@ class StatefullAction(Action):
         else:
             # If no rollback is set, we will set a fake one for undo method to work.
             # And we will not set any logging for this rollback.
-            # TODO:
             prepared_action._rollback_fct = lambda: None
+            prepared_action._no_undo_logging = True
         return prepared_action
 
     @staticmethod
@@ -496,9 +497,11 @@ class StatefullAction(Action):
             self._state["action_failed"] = True
             raise  # re-raise exception
 
-    def notify(self, *args, **kwargs):
+    def notify(self, action_side, step, **kwargs):
+        if self._no_undo_logging and action_side == "rollback":
+            return
         kwargs["state"] = self._state
-        super(StatefullAction, self).notify(*args, **kwargs)
+        super(StatefullAction, self).notify(action_side, step, **kwargs)
 
     def simulate(self, action_side, after_state):
         """ Will simulate the action but without calling it.
