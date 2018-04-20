@@ -972,3 +972,25 @@ def test_info_streaming():
         ('rollback1', 'end', {"item": 10, "other": 15, "last": 20}),
         ('pipeline_rollback', 'end'),
     ]
+
+
+def test_context_manager_retry():
+    mock_action = MagicMock(side_effect=Exception)
+    action = Action(mock_action)
+
+    @action.action_context_manager
+    @contextmanager
+    def retry_do_3_times_if_it_fails(action):
+        try:
+            yield
+        except Exception:
+            action.retries = getattr(action, "retries", 0) + 1
+            if action.retries < 3:
+                action.do()
+            else:
+                raise
+
+    with pytest.raises(Exception):
+        action.do()
+
+    assert mock_action.call_count == 3
