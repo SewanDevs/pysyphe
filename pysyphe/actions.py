@@ -640,10 +640,11 @@ class ActionsPipeline(Action):
     ```
     """
 
-    def __init__(self, name=None):
+    def __init__(self, actions_list=None, name=None):
         """ Construct an action pipeline.
         Args:
-            name (string): name if the pipeline. The default value for this name is bad, you should change it.
+            actions_list (list of Action): a list of Action that will be added to the pipeline.
+            name (string): name of the pipeline. The default value for this name is bad, you should change it.
         """
         # Here, _action_fct and _rollback_fct are defined as methods in the class.
         # But Action constructor sets _action_fct and _rollback_fct, so we need to give the methods to the constructor.
@@ -655,6 +656,9 @@ class ActionsPipeline(Action):
         self._actions_list = list()
         self.name = name
         self.rollback_name = name  # Better to have the same name than the generic one for a pipeline
+        if actions_list:
+            for action in actions_list:
+                self.append(action)
 
     @property
     def actions(self):

@@ -618,7 +618,14 @@ class SharedResultAction(object):
 class TestActionsPipeline(object):
     @staticmethod
     def test_init():
-        assert ActionsPipeline("pipeline_name")
+        assert ActionsPipeline(name="pipeline_name")
+
+    @staticmethod
+    def test_init_with_list():
+        action = Action()
+        action2 = Action()
+        ap = ActionsPipeline([action, action2])
+        assert ap.actions[0] == action and ap.actions[1] == action2
 
     @staticmethod
     def test_append_bad():
