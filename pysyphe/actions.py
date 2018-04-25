@@ -357,6 +357,8 @@ class StatefullAction(Action):
         super(StatefullAction, self).__init__(action_fct=action_fct)
         self.name = name
         self._no_undo_logging = False
+        # TODO: find a solution to prevent calling do before calling get_prepared_action. With a context manager for example,
+        # Or by saving action_fct somewhere else and setting self._action_fct in get_prepared_action.
 
     @property
     def state(self):
