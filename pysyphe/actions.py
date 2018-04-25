@@ -269,7 +269,8 @@ class StatefullAction(Action):
         A statefullAction may have a rollback but its not mandatory.
         A statefullAction may be done partially. So it may have to do partial rollback. It means that it's up to the rollback
         function to know what must be undone and the rollback function will be called even if the action has failed (even if the
-        action has not been called because of an exception in a context manager.)
+        action has not been called because of an exception in a context manager.) If the action fails, the item "action_failed"
+        will be present in the state for the rollback function to know.
 
         Usage:
         ```
@@ -808,9 +809,8 @@ def staticaction(action):
     # And if an action has been defined to be static (it should allways be the case), the rollback_action decorator is not
     # available directly (the descriptor mecanism of staticmethod can only apply after the construction of the class is finished).
     # We need to copy the decorator on the staticmethod object that encapsulates the real method.
-    # TODO: maybe re-read how @properties are defined to see if there no better way.
     # TODO: to simplify usage and because all actions inside class should be static, we can transform every unit_action in subclasses
-    # of Actions into staticmethod directly in the metaclass of Actions.
+    # of Actions into staticmethod directly in the metaclass of Actions. Or maybe in the __getattribute__ of Actions ?
     if sys.version_info > (3, 3):
         staticaction_ = staticmethod(action)
     else:
