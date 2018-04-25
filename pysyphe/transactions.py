@@ -36,22 +36,22 @@ class TransactionHandler(object):
     If a transaction uses locks, it should be acquired in the begin phase and released in the rollback and commit phases.
     """
 
-    def begin(self, *args, **kwargs):
+    def begin(self):
         pass
 
-    def execute(self, *args, **kwargs):
+    def execute(self):
         pass
 
-    def rollback(self, *args, **kwargs):
+    def rollback(self):
         pass
 
-    def can_prepare_commit(self, *args, **kwargs):
+    def can_prepare_commit(self):
+        return False
+
+    def prepare_commit(self):
         pass
 
-    def prepare_commit(self, *args, **kwargs):
-        pass
-
-    def commit(self, *args, **kwargs):
+    def commit(self):
         pass
 
 
