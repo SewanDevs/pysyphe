@@ -19,6 +19,7 @@ Features
 **Rollbackable Actions**
 
 Create actions and chain them in a pipeline:
+
 .. code-block:: python
 
 
@@ -40,6 +41,7 @@ Create actions and chain them in a pipeline:
 
 
 Create rollback for your actions:
+
 .. code-block:: python
 
     >>> def hello_world():
@@ -56,6 +58,7 @@ Create rollback for your actions:
 
 
 Rollback pipelines:
+
 .. code-block:: python
 
     >>> def hello_world():
@@ -83,6 +86,7 @@ Rollback pipelines:
 
 
 Rollback only what have been done:
+
 .. code-block:: python
 
     >>> def hello_world():
@@ -114,6 +118,7 @@ Rollback only what have been done:
 
 
 Define actions with a state:
+
 .. code-block:: python
 
     >>> from pysyphe.actions import statefull_action
@@ -138,6 +143,7 @@ Define actions with a state:
 
 
 Chain actions with a state:
+
 .. code-block:: python
 
     >>> @statefull_action(["name"])
@@ -174,6 +180,7 @@ Chain actions with a state:
 **Transactions**
 
 Create transaction handlers and manage them:
+
 .. code-block:: python
 
     >>> from pysyphe.transactions import TransactionHandler, TransactionsManager
