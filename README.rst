@@ -8,6 +8,7 @@ Installation
 ------------
 
 .. code-block:: console
+
     $ pipenv install pysyphe
 
 
@@ -20,6 +21,8 @@ Features
 Create actions and chain them in a pipeline:
 
 .. code-block:: python
+
+
     >>> from pysyphe.actions import ActionsPipeline, Action
     >>> def hello_world():
     ...     print("Hello world!")
@@ -40,6 +43,7 @@ Create actions and chain them in a pipeline:
 Create rollback for your actions:
 
 .. code-block:: python
+
     >>> def hello_world():
     ...     print("Hello world!")
     ...
@@ -56,6 +60,7 @@ Create rollback for your actions:
 Rollback pipelines:
 
 .. code-block:: python
+
     >>> def hello_world():
     ...     print("Hello world!")
     ...
@@ -83,6 +88,7 @@ Rollback pipelines:
 Rollback only what have been done:
 
 .. code-block:: python
+
     >>> def hello_world():
     ...     print("Hello world!")
     ...
@@ -114,6 +120,7 @@ Rollback only what have been done:
 Define actions with a state:
 
 .. code-block:: python
+
     >>> from pysyphe.actions import statefull_action
     >>> @statefull_action(["name"])
     ... def hello(state):
@@ -138,7 +145,8 @@ Define actions with a state:
 Chain actions with a state:
 
 .. code-block:: python
-    >>> @statefull_acion(["name"])
+
+    >>> @statefull_action(["name"])
     ... def hello(state):
     ...     print("Hello {}".format(state["name"]))
     ...     state["name"] = "Dear " + state["name"]
@@ -174,6 +182,7 @@ Chain actions with a state:
 Create transaction handlers and manage them:
 
 .. code-block:: python
+
     >>> from pysyphe.transactions import TransactionHandler, TransactionsManager
     >>> class LoggingTransactionHandler(TransactionHandler):
     ...     def __init__(self, name, will_fail):
