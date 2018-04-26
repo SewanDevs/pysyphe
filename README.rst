@@ -5,20 +5,23 @@ Pysyphe
 Helps you create and manage your own rollbackable transactions.
 
 Installation
------
+------------
 
-```
-$ pipenv install pysyphe
-```
+.. code-block:: console
+
+    $ pipenv install pysyphe
+
 
 Features
--------
+--------
 
 
-### Rollbackable Actions
+**Rollbackable Actions**
 
 Create actions and chain them in a pipeline:
 .. code-block:: python
+
+
     >>> from pysyphe.actions import ActionsPipeline, Action
     >>> def hello_world():
     ...     print("Hello world!")
@@ -35,8 +38,10 @@ Create actions and chain them in a pipeline:
     Hello world!
     I'm Alive!!!
 
+
 Create rollback for your actions:
 .. code-block:: python
+
     >>> def hello_world():
     ...     print("Hello world!")
     ...
@@ -49,8 +54,10 @@ Create rollback for your actions:
     >>> action.undo()
     Goodbye world!
 
+
 Rollback pipelines:
 .. code-block:: python
+
     >>> def hello_world():
     ...     print("Hello world!")
     ...
@@ -74,8 +81,10 @@ Rollback pipelines:
     Goodbye world!
     I'm Dead!!!
 
+
 Rollback only what have been done:
 .. code-block:: python
+
     >>> def hello_world():
     ...     print("Hello world!")
     ...
@@ -103,8 +112,10 @@ Rollback only what have been done:
     Hello world!
     Goodbye world!
 
+
 Define actions with a state:
 .. code-block:: python
+
     >>> from pysyphe.actions import statefull_action
     >>> @statefull_action(["name"])
     ... def hello(state):
@@ -125,8 +136,10 @@ Define actions with a state:
     >>> action.do()
     Hello Dear Dear reader
 
+
 Chain actions with a state:
 .. code-block:: python
+
     >>> @statefull_action(["name"])
     ... def hello(state):
     ...     print("Hello {}".format(state["name"]))
@@ -157,10 +170,12 @@ Chain actions with a state:
     Goodbye Dear Dear Dear reader
     Goodbye Dear Dear reader
 
-### Transactions
+
+**Transactions**
 
 Create transaction handlers and manage them:
 .. code-block:: python
+
     >>> from pysyphe.transactions import TransactionHandler, TransactionsManager
     >>> class LoggingTransactionHandler(TransactionHandler):
     ...     def __init__(self, name, will_fail):
@@ -203,10 +218,9 @@ Create transaction handlers and manage them:
         transaction_handler.execute()
       File "<stdin>", line -, in execute
     Exception: Your transaction failed, what are you gonna do?
-```
 
 
-.. |pipeline_status| image: https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/pipeline.svg
+.. |pipeline_status| image:: https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/pipeline.svg
    :target: https://gitlab.priv.sewan.fr/sophia/pysyphe/pipelines
-.. |coverage| image: https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/coverage.svg
+.. |coverage| image:: https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/coverage.svg
    :target: https://gitlab.priv.sewan.fr/sophia/pysyphe/commits/master
