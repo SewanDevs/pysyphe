@@ -33,7 +33,7 @@ flake8:
 tox2.7:
   stage: test27
   before_script:
-    - pip install -rtests/requirements.txt
+    - pip install tox
   script:
     - tox -e py27
   artifacts:
@@ -52,7 +52,7 @@ tox3.6:
   dependencies:
     - tox2.7
   before_script:
-    - pip install -rtests/requirements.txt
+    - pip install tox
   script:
     - tox -e py36
   artifacts:

@@ -9,7 +9,26 @@ Installation
 
 .. code-block:: console
 
+    $ pip install --trusted-host devpi.priv.sewan.fr --index-url http://devpi.priv.sewan.fr/sophia/prod/ pysyphe
+
+Or, if your pipenv is correctly configured:
+
+.. code-block:: console
+
     $ pipenv install pysyphe
+
+
+Tests
+------
+
+Tests should be run under python 2.7 and python 3.6 to tests everything
+
+.. code-block:: console
+
+    $ pip install tox
+    $ tox -e py27,py36
+
+Coverage reports will be the merge of the coverage for py27 and py36.
 
 
 Features
@@ -226,6 +245,11 @@ Create transaction handlers and manage them:
       File "<stdin>", line -, in execute
     Exception: Your transaction failed, what are you gonna do?
 
+
+TODOs
+------
+- Generate the documentation
+- Add a "How-To correctly write unit actions to get the most out of pysyphe" into the documentation
 
 .. |pipeline_status| image:: https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/pipeline.svg
    :target: https://gitlab.priv.sewan.fr/sophia/pysyphe/pipelines
