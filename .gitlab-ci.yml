@@ -65,7 +65,7 @@ tox3.6:
 #################################################################################
 
 sonarqube_preview:
-  image: $DOCKER_REGISTRY/sophia/dockers/utils/sonar-runner:alpine
+  image: $DOCKER_REGISTRY/sidevops/docker/utils/sonar-ci:latest
   stage: analysis
   script:
     - sh /opt/sonar-runner/bin/sonar-runner
@@ -79,7 +79,7 @@ sonarqube_preview:
         -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME
 
 sonarqube_analysis:
-  image: $DOCKER_REGISTRY/sophia/dockers/utils/sonar-runner:alpine
+  image: $DOCKER_REGISTRY/sidevops/docker/utils/sonar-ci:latest
   stage: analysis
   script:
     - sh /opt/sonar-runner/bin/sonar-runner -Dsonar.host.url=$SONAR_URL -Dsonar.login=$SONAR_LOGIN
