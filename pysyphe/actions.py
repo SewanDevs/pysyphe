@@ -478,7 +478,8 @@ class StatefullAction(Action):
     def _check_kwargs_for_action(self, kwargs):
         missing_args = set(self._action_state_items) - set(kwargs.keys())
         if missing_args:
-            raise ActionException("Missing args for the action preparation: {}".format(", ".join(missing_args)))
+            raise ActionException("Missing args for the action {} preparation: {}".format(self.name,
+                                                                                          ", ".join(missing_args)))
         # Checks that all items used in the action are defined in the decorator.
         superfluous_args = set(kwargs.keys()) - set(self._action_state_items)
         if superfluous_args:
@@ -492,7 +493,8 @@ class StatefullAction(Action):
             # but potentially for other actions.
             missing_items = set(self._rollback_state_items) - set(self._state.keys())
             if missing_items:
-                raise ActionException("Missing items in state for the rollback action: {}".format(", ".join(missing_items)))
+                raise ActionException("Missing items in state for the rollback action {}: {}".format(self.name,
+                                                                                                     ", ".join(missing_items)))
         except Exception:
             # We will check missing args only if action was successfull. If it was not, we will add an item "action_failed"
             # to help rollback knows that state is missing lots of thing.
