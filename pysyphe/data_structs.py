@@ -36,6 +36,7 @@ class ReferencesDict(MutableMapping):
 
     class RefValue(object):
         """ RefValue is a reference to another dict's value. Call the RefValue to have the up-to-date value."""
+
         def __init__(self, refs_dict, key):
             """ Contruct a value that references another dict's value.
             Args:
@@ -82,7 +83,11 @@ class ReferencesDict(MutableMapping):
 
     def ref_keys(self):
         """ Return the list of keys that are refs"""
-        return [key for key, value in self._dict.items() if isinstance(value, ReferencesDict.RefValue)]
+        return [
+            key
+            for key, value in self._dict.items()
+            if isinstance(value, ReferencesDict.RefValue)
+        ]
 
 
 class ReversibleList(Iterator):
@@ -127,7 +132,7 @@ class ReversibleList(Iterator):
     def reverse(self):
         self._list = self._list[::-1]
         self._position = len(self._list) - self._position
-        self._list_iterator = iter(self._list[self._position:])
+        self._list_iterator = iter(self._list[self._position :])
 
     def append(self, elem):
         self._list.append(elem)

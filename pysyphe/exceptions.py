@@ -19,4 +19,6 @@ class WeAreDoomedException(TransactionException):
         self.msg = msg
 
     def __str__(self):
-        return "\n".join([self.msg, "Exceptions encountered in order:"] + self.exceptions_tracebacks)
+        return "\n".join(
+            [self.msg, "Exceptions encountered in order:"] + self.exceptions_tracebacks
+        )

@@ -6,11 +6,20 @@ from copy import copy
 from contextlib import contextmanager
 from mock import MagicMock
 
-from pysyphe.actions import Action, StatefullAction, statefull_action, UnitAction, unit_action, ActionsPipeline, _format_fct_name
+from pysyphe.actions import (
+    Action,
+    StatefullAction,
+    statefull_action,
+    UnitAction,
+    unit_action,
+    ActionsPipeline,
+    _format_fct_name,
+)
 from pysyphe.actions import Actions, staticaction
 from pysyphe.exceptions import ActionException
 from pysyphe.streamers import InfoStreamer
 from pysyphe.data_structs import ReferencesDict
+
 if sys.version_info < (3, 0):
     from pysyphe.py2 import InstanceMethod
 
@@ -19,6 +28,7 @@ if sys.version_info < (3, 0):
 def test__format_fct_name():
     def yolo():
         pass
+
     assert _format_fct_name(yolo)
 
 
@@ -32,6 +42,7 @@ class SharedContextManager(object):
             self.result += before
             yield
             self.result += after
+
         return cm
 
 
@@ -144,12 +155,15 @@ class TestAction(object):
         assert notif_mock.call_count == 2
 
     @staticmethod
-    @pytest.mark.parametrize("action_type, function_to_call, result", [
-        ('action', 'do', 'ba'),
-        ('rollback', 'do', ''),
-        ('action', 'undo', ''),
-        ('rollback', 'undo', 'ba'),
-    ])
+    @pytest.mark.parametrize(
+        "action_type, function_to_call, result",
+        [
+            ("action", "do", "ba"),
+            ("rollback", "do", ""),
+            ("action", "undo", ""),
+            ("rollback", "undo", "ba"),
+        ],
+    )
     def test_add_context_manager(action_type, function_to_call, result):
         ac = Action(lambda: 10, lambda: -10)
         csm = SharedContextManager()
@@ -158,18 +172,23 @@ class TestAction(object):
         assert csm.result == result
 
     @staticmethod
-    @pytest.mark.parametrize("action_type, function_to_call, result", [
-        ('action', 'do', 'b2bb3a3aa2'),
-        ('rollback', 'do', ''),
-        ('action', 'undo', ''),
-        ('rollback', 'undo', 'b2bb3a3aa2'),
-    ])
+    @pytest.mark.parametrize(
+        "action_type, function_to_call, result",
+        [
+            ("action", "do", "b2bb3a3aa2"),
+            ("rollback", "do", ""),
+            ("action", "undo", ""),
+            ("rollback", "undo", "b2bb3a3aa2"),
+        ],
+    )
     def test_add_context_manager_inner(action_type, function_to_call, result):
         ac = Action(lambda: 10, lambda: -10)
         csm = SharedContextManager()
         ac.add_context_manager(action_type, csm.gen_context_manager("b", "a"))
         ac.add_context_manager(action_type, csm.gen_context_manager("b2", "a2"))
-        ac.add_context_manager(action_type, csm.gen_context_manager("b3", "a3"), inner=True)
+        ac.add_context_manager(
+            action_type, csm.gen_context_manager("b3", "a3"), inner=True
+        )
         getattr(ac, function_to_call)()
         assert csm.result == result
 
@@ -239,7 +258,9 @@ class TestStateFullAction(object):
 
     @staticmethod
     def test_action_not_good(monkeypatch):
-        monkeypatch.setattr(StatefullAction, "_check_fct", MagicMock(side_effect=ActionException))
+        monkeypatch.setattr(
+            StatefullAction, "_check_fct", MagicMock(side_effect=ActionException)
+        )
         action = StatefullAction()
         with pytest.raises(ActionException):
             action.action(lambda state: 10)
@@ -593,12 +614,13 @@ def test_actions(complex_actions):
         # prep_action_2.do()
         2,
         # prep_action_2.undo()
-        "Hello", 2,
+        "Hello",
+        2,
         # prep_action.undo()
         1,
         "OLOY",
         # prep_action_3.do()
-        2
+        2,
     ]
 
 
@@ -609,9 +631,12 @@ class SharedResultAction(object):
     def gen_action(self, text):
         def action_fct():
             self.result += text
+
         if sys.version_info < (3, 0):
             action_fct = InstanceMethod(action_fct)
-        action_fct._class = text  # necessary to differentiate the name of the different functions.
+        action_fct._class = (
+            text
+        )  # necessary to differentiate the name of the different functions.
         return action_fct
 
 
@@ -713,7 +738,9 @@ class TestActionsPipeline(object):
         ap = ActionsPipeline()
         shared_result = SharedResultAction()
         action1 = Action(shared_result.gen_action("a"), shared_result.gen_action("c"))
-        action2 = Action(MagicMock(side_effect=Exception()), shared_result.gen_action("d"))
+        action2 = Action(
+            MagicMock(side_effect=Exception()), shared_result.gen_action("d")
+        )
         ap.append(action1)
         ap.append(action2)
         try:
@@ -762,7 +789,9 @@ class TestActionsPipeline(object):
         action1_name = action1.get_name("action")
         action2_name = action2.get_name("action")
         action2_rollback_name = action2.get_name("rollback")
-        ap.simulate_until([(action1_name, {}), (action2_name, {}), (action2_rollback_name, {})])
+        ap.simulate_until(
+            [(action1_name, {}), (action2_name, {}), (action2_rollback_name, {})]
+        )
         ap.undo()
         assert shared_result.result == "c"
 
@@ -773,7 +802,7 @@ class TestActionsPipeline(object):
         action1 = Action(shared_result.gen_action("a"), shared_result.gen_action("c"))
         ap.append(action1)
         with pytest.raises(ActionException):
-            ap.simulate_until([('garbage', {})])
+            ap.simulate_until([("garbage", {})])
 
     @staticmethod
     def test_simulate_until_error_undo():
@@ -821,13 +850,19 @@ def complex_pipeline(complex_actions):
     ap.append(prep_action)
     ap.append(prep_action_2)
     if sys.version_info < (3, 0):
-        actions_names = ["tests.test_actions.my_action", "tests.test_actions.my_action_2",
-                         "tests.test_actions.my_action_2_rollback", "tests.test_actions.my_action_rollback"]
+        actions_names = [
+            "tests.test_actions.my_action",
+            "tests.test_actions.my_action_2",
+            "tests.test_actions.my_action_2_rollback",
+            "tests.test_actions.my_action_rollback",
+        ]
     else:
-        actions_names = ["tests.test_actions.complex_actions.my_action",
-                         "tests.test_actions.complex_actions.my_action_2",
-                         "tests.test_actions.complex_actions.my_action_2_rollback",
-                         "tests.test_actions.complex_actions.my_action_rollback"]
+        actions_names = [
+            "tests.test_actions.complex_actions.my_action",
+            "tests.test_actions.complex_actions.my_action_2",
+            "tests.test_actions.complex_actions.my_action_2_rollback",
+            "tests.test_actions.complex_actions.my_action_rollback",
+        ]
     return ap, results, actions_names
 
 
@@ -841,7 +876,8 @@ def test_actions_pipeline(complex_pipeline):
         # prep_action_2.do()
         2,
         # prep_action_2.undo()
-        "Hello", 2,
+        "Hello",
+        2,
         # prep_action.undo()
         1,
         "OOLOLOW",
@@ -851,9 +887,9 @@ def test_actions_pipeline(complex_pipeline):
 def test_actions_pipeline_simulate(complex_pipeline):
     ap, results, actions = complex_pipeline
 
-    ap.simulate_until([
-        (actions[0], {"text": "WOLOLOO", "id": 1, "id2": 2, "before_text": "OOLOLOW"}),
-    ])
+    ap.simulate_until(
+        [(actions[0], {"text": "WOLOLOO", "id": 1, "id2": 2, "before_text": "OOLOLOW"})]
+    )
     ap.do()
     ap.undo()
     assert results == [2, "Hello", 2, 1, "OOLOLOW"]
@@ -861,11 +897,16 @@ def test_actions_pipeline_simulate(complex_pipeline):
 
 def test_actions_pipeline_simulate_with_rollback(complex_pipeline):
     ap, results, actions = complex_pipeline
-    ap.simulate_until([
-        (actions[0], {"text": "WOLOLOO", "id": 1, "id2": 2, "before_text": "OOLOLOW"}),
-        (actions[1], {"id": 3}),
-        (actions[2], {"id": 2})
-    ])
+    ap.simulate_until(
+        [
+            (
+                actions[0],
+                {"text": "WOLOLOO", "id": 1, "id2": 2, "before_text": "OOLOLOW"},
+            ),
+            (actions[1], {"id": 3}),
+            (actions[2], {"id": 2}),
+        ]
+    )
     ap.undo()
     assert results == [1, "OOLOLOW"]
 
@@ -916,6 +957,7 @@ def test_classic_context_manager():
         def __exit__(self, *args, **kwargs):
             # May use self.action
             pass
+
     ContextManager.__enter__ = MagicMock()
     ContextManager.__exit__ = MagicMock()
     action.do()
@@ -951,9 +993,9 @@ def test_info_streaming():
 
     class FakeInfoStreamer(InfoStreamer):
         def send_info(self, **kwargs):
-            if 'begin' in kwargs:
+            if "begin" in kwargs:
                 step_type = "begin"
-            if 'end' in kwargs:
+            if "end" in kwargs:
                 step_type = "end"
             if "state" in kwargs:
                 info = (kwargs["action_name"], step_type, dict(kwargs["state"]))
@@ -966,18 +1008,18 @@ def test_info_streaming():
     ap.undo()
 
     assert streamed_info == [
-        ('pipeline', 'begin'),
-        ('action1', 'begin', {"item": 10}),
-        ('action1', 'end', {"item": 10, "other": 15}),
-        ('action2', 'begin', {"item": 100}),
-        ('action2', 'end', {"item": 100, "other": 105}),
-        ('pipeline', 'end'),
-        ('pipeline_rollback', 'begin'),
-        ('rollback2', 'begin', {"item": 100, "other": 105}),
-        ('rollback2', 'end', {"item": 100, "other": 105, "last": 110}),
-        ('rollback1', 'begin', {"item": 10, "other": 15}),
-        ('rollback1', 'end', {"item": 10, "other": 15, "last": 20}),
-        ('pipeline_rollback', 'end'),
+        ("pipeline", "begin"),
+        ("action1", "begin", {"item": 10}),
+        ("action1", "end", {"item": 10, "other": 15}),
+        ("action2", "begin", {"item": 100}),
+        ("action2", "end", {"item": 100, "other": 105}),
+        ("pipeline", "end"),
+        ("pipeline_rollback", "begin"),
+        ("rollback2", "begin", {"item": 100, "other": 105}),
+        ("rollback2", "end", {"item": 100, "other": 105, "last": 110}),
+        ("rollback1", "begin", {"item": 10, "other": 15}),
+        ("rollback1", "end", {"item": 10, "other": 15, "last": 20}),
+        ("pipeline_rollback", "end"),
     ]
 
 

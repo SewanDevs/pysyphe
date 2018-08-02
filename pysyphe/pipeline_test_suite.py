@@ -46,7 +46,13 @@ class _PipelineTestSuiteActionException(PysypheException):
 
 
 def _copy_func(func):
-    return types.FunctionType(func.__code__, func.__globals__, func.__name__, func.__defaults__, func.__closure__)
+    return types.FunctionType(
+        func.__code__,
+        func.__globals__,
+        func.__name__,
+        func.__defaults__,
+        func.__closure__,
+    )
 
 
 class _PipelineTestSuiteMetaclass(type):
@@ -64,14 +70,19 @@ class _PipelineTestSuiteMetaclass(type):
             # Now, we need to retrieve pipeline_with_failure_fixture to re-parametrize it.
             # It is somewhere in the baseclasses, at least one have it or we are not somewhere in the inheritence tree
             # of PipelineTestSuite.
-            pipeline_with_failure_fixture = [base.pipeline_with_failure_fixture for base in bases
-                                             if hasattr(base, "pipeline_with_failure_fixture")]
+            pipeline_with_failure_fixture = [
+                base.pipeline_with_failure_fixture
+                for base in bases
+                if hasattr(base, "pipeline_with_failure_fixture")
+            ]
             pipeline_with_failure_fixture = pipeline_with_failure_fixture[0]
             # Now that we have it, we will make a copy of it to avoid breaking the parametrization of other subclasses.
             # To understand why, you should know that pytest saves the parametrization of a fixture as metadata on the original
             # function and thus if we re-parametrize the same fixture again, all subclasses will overwrite the same params.
             copied_func = _copy_func(pipeline_with_failure_fixture)
-            attrs["pipeline_with_failure_fixture"] = pytest.fixture(scope='function', params=fixture_params)(copied_func)
+            attrs["pipeline_with_failure_fixture"] = pytest.fixture(
+                scope="function", params=fixture_params
+            )(copied_func)
         # We have another problem, pytest.mark.usefixtures on subclasses is buggy actually:
         # See: https://github.com/pytest-dev/pytest/issues/2806, https://github.com/pytest-dev/pytest/issues/568 and
         # https://github.com/pytest-dev/pytest/issues/535.
@@ -80,13 +91,14 @@ class _PipelineTestSuiteMetaclass(type):
             for attr_name, attr in vars(base).items():
                 if attr_name.startswith("test") and callable(attr):
                     copied_func = _copy_func(attr)
-                    if attr_name not in attrs:  # We want to avoid overwriting something.
+                    if (
+                        attr_name not in attrs
+                    ):  # We want to avoid overwriting something.
                         attrs[attr_name] = copied_func
         return type.__new__(mcs, name, bases, attrs)
 
 
 class PipelineTestSuite(with_metaclass(_PipelineTestSuiteMetaclass, object)):
-
     @staticmethod
     # pipeline_creator is called at metaclass instanciation time so it needs to be static
     def pipeline_creator():
@@ -116,7 +128,10 @@ class PipelineTestSuite(with_metaclass(_PipelineTestSuiteMetaclass, object)):
     def pipeline_with_failure_fixture(self, pipeline_fixture, request):
         action_pos_that_fails = request.param
         action_fct = MagicMock(
-            side_effect=_PipelineTestSuiteActionException("Your pipeline has been eaten by your dog ! Try again."))
+            side_effect=_PipelineTestSuiteActionException(
+                "Your pipeline has been eaten by your dog ! Try again."
+            )
+        )
         failed_action = Action(action_fct, lambda: None)
         self.modify_action(pipeline_fixture, failed_action, action_pos_that_fails)
         yield pipeline_fixture
@@ -134,7 +149,9 @@ class PipelineTestSuite(with_metaclass(_PipelineTestSuiteMetaclass, object)):
         trm = TransactionsManager()
         pipe_handler = PipelineTransactionHandler(pipeline_with_failure_fixture)
         trm.add_transaction_handler(pipe_handler)
-        with pytest.raises(_PipelineTestSuiteActionException):  # Exception of failed action mock.
+        with pytest.raises(
+            _PipelineTestSuiteActionException
+        ):  # Exception of failed action mock.
             with trm.begin():
                 trm.execute()
         assert self.success_checker()

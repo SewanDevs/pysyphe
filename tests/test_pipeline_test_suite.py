@@ -16,9 +16,9 @@ class InfoStreamerMock(InfoStreamer):
         self.steps = []
 
     def send_info(self, **kwargs):
-        if 'begin' in kwargs:
+        if "begin" in kwargs:
             step_type = "begin"
-        if 'end' in kwargs:
+        if "end" in kwargs:
             step_type = "end"
         self.steps.append((kwargs["action_name"], step_type))
 
@@ -110,7 +110,9 @@ class TestPipelineTestSuite(PipelineTestSuite):
 def test_skip_if_not_clean(monkeypatch):
     skip_mock = MagicMock()
     monkeypatch.setattr("pytest.skip", skip_mock)
-    monkeypatch.setattr(PipelineTestSuite, "success_checker", MagicMock(return_value=False))
+    monkeypatch.setattr(
+        PipelineTestSuite, "success_checker", MagicMock(return_value=False)
+    )
     # fixture are generator. Need to call next on it for the body to be executed.
     next(PipelineTestSuite().pipeline_fixture())
     assert skip_mock.called

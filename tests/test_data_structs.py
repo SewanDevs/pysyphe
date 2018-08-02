@@ -6,7 +6,6 @@ from pysyphe.data_structs import ReferencesDict, ReversibleList
 
 
 class TestReferencesDict(object):
-
     @staticmethod
     def test_init():
         assert ReferencesDict({"a": 10})
@@ -14,12 +13,12 @@ class TestReferencesDict(object):
     @staticmethod
     def test_RefValue_init():
         refs_dict = ReferencesDict()
-        assert ReferencesDict.RefValue(refs_dict, 'a')
+        assert ReferencesDict.RefValue(refs_dict, "a")
 
     @staticmethod
     def test_RefValue_call():
         refs_dict = ReferencesDict({"a": 10})
-        ref_val = ReferencesDict.RefValue(refs_dict, 'a')
+        ref_val = ReferencesDict.RefValue(refs_dict, "a")
         assert ref_val() == 10
 
     @staticmethod
@@ -59,12 +58,12 @@ class TestReferencesDict(object):
     @staticmethod
     def test_del():
         refs_dict = ReferencesDict({"a": 10})
-        del refs_dict['a']
-        assert 'a' not in refs_dict
+        del refs_dict["a"]
+        assert "a" not in refs_dict
 
     @staticmethod
     def test_iter():
-        assert next(iter(ReferencesDict({"a": 10}))) == 'a'
+        assert next(iter(ReferencesDict({"a": 10}))) == "a"
 
     @staticmethod
     def test_len():
@@ -97,7 +96,6 @@ class TestReferencesDict(object):
 
 
 class TestReversibleList(object):
-
     @staticmethod
     def test_init():
         assert ReversibleList([1, 2, 3])

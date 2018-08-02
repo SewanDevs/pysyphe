@@ -93,7 +93,10 @@ class TransactionsManager(object):
         """
         # Exception may have been already added to self.exceptions_encountered
         # if rollback has been already called for example.
-        if not self.exceptions_encountered or self.exceptions_encountered[-1][0] != exception:
+        if (
+            not self.exceptions_encountered
+            or self.exceptions_encountered[-1][0] != exception
+        ):
             self.exceptions_encountered.append((exception, traceback.format_exc()))
 
     @contextmanager
@@ -112,15 +115,24 @@ class TransactionsManager(object):
             self._add_exception_encoutered(e)
             if self._already_rollbacked:
                 # "raise WeAreDoomedException from" en python3
-                traceback_encountered = [traceback_txt for _exc, traceback_txt in self.exceptions_encountered]
-                raise WeAreDoomedException("Transactions already rollbacked", traceback_encountered)
+                traceback_encountered = [
+                    traceback_txt for _exc, traceback_txt in self.exceptions_encountered
+                ]
+                raise WeAreDoomedException(
+                    "Transactions already rollbacked", traceback_encountered
+                )
             else:
                 try:
                     self.rollback()
                 except Exception as rlb_e:
                     self._add_exception_encoutered(rlb_e)
-                    traceback_encountered = [traceback_txt for _exc, traceback_txt in self.exceptions_encountered]
-                    raise WeAreDoomedException("Transactions rollbacking failed.", traceback_encountered)
+                    traceback_encountered = [
+                        traceback_txt
+                        for _exc, traceback_txt in self.exceptions_encountered
+                    ]
+                    raise WeAreDoomedException(
+                        "Transactions rollbacking failed.", traceback_encountered
+                    )
             raise
 
     def execute(self):
@@ -162,16 +174,25 @@ class TransactionsManager(object):
             raise TransactionException("Transactions have not begun!")
         # Two phase commit.
         # Prepare commit for all transactions.
-        prepare_commit_trs = [transaction_handler for transaction_handler in self._transaction_handlers
-                              if transaction_handler.can_prepare_commit()]
-        if any(not transaction_handler.prepare_commit() for transaction_handler in prepare_commit_trs):
+        prepare_commit_trs = [
+            transaction_handler
+            for transaction_handler in self._transaction_handlers
+            if transaction_handler.can_prepare_commit()
+        ]
+        if any(
+            not transaction_handler.prepare_commit()
+            for transaction_handler in prepare_commit_trs
+        ):
             # Prepare commit has failed. We rollback.
             self.rollback()
             return
         # All commit have been prepared.
         # We commit first those who can't be prepared.
-        no_prepare_commit_trs = [transaction_handler for transaction_handler in self._transaction_handlers
-                                 if not transaction_handler.can_prepare_commit()]
+        no_prepare_commit_trs = [
+            transaction_handler
+            for transaction_handler in self._transaction_handlers
+            if not transaction_handler.can_prepare_commit()
+        ]
         for transaction_handler in no_prepare_commit_trs:
             transaction_handler.commit()
         for transaction_handler in prepare_commit_trs:
@@ -217,8 +238,10 @@ class PipelineTransactionHandler(TransactionHandler):
     @pipeline_name.setter
     def pipeline_name(self, value):
         """ The pipeline name is read only """
-        raise TransactionException("Pipeline name is read only. "
-                                   "You should change the name of the pipeline directly on the pipeline object.")
+        raise TransactionException(
+            "Pipeline name is read only. "
+            "You should change the name of the pipeline directly on the pipeline object."
+        )
 
     def execute(self):
         # execute is redefined in actions_pipeline.setter

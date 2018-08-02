@@ -3,7 +3,11 @@
 import pytest
 from mock import MagicMock
 
-from pysyphe.transactions import TransactionHandler, TransactionsManager, PipelineTransactionHandler
+from pysyphe.transactions import (
+    TransactionHandler,
+    TransactionsManager,
+    PipelineTransactionHandler,
+)
 from pysyphe.exceptions import TransactionException, WeAreDoomedException
 
 
@@ -149,6 +153,7 @@ class TestTransactionsManager(object):
 
         class TestException(Exception):
             pass
+
         with pytest.raises(TestException):
             with trm.begin():
                 raise TestException("I KILL YOU !")
@@ -177,9 +182,15 @@ class TestTransactionsManager(object):
     @staticmethod
     def test_commit():
         trm = TransactionsManager()
-        trh1 = TransactionHandlerMock({"can_prepare_commit": MagicMock(return_value=True),
-                                       "prepare_commit": MagicMock(return_value=True)})
-        trh2 = TransactionHandlerMock({"can_prepare_commit": MagicMock(return_value=False)})
+        trh1 = TransactionHandlerMock(
+            {
+                "can_prepare_commit": MagicMock(return_value=True),
+                "prepare_commit": MagicMock(return_value=True),
+            }
+        )
+        trh2 = TransactionHandlerMock(
+            {"can_prepare_commit": MagicMock(return_value=False)}
+        )
         trm.add_transaction_handler(trh1)
         trm.add_transaction_handler(trh2)
         with trm.begin():
@@ -199,9 +210,15 @@ class TestTransactionsManager(object):
     @staticmethod
     def test_commit_prepare_failed():
         trm = TransactionsManager()
-        trh1 = TransactionHandlerMock({"can_prepare_commit": MagicMock(return_value=True),
-                                       "prepare_commit": MagicMock(return_value=False)})
-        trh2 = TransactionHandlerMock({"can_prepare_commit": MagicMock(return_value=False)})
+        trh1 = TransactionHandlerMock(
+            {
+                "can_prepare_commit": MagicMock(return_value=True),
+                "prepare_commit": MagicMock(return_value=False),
+            }
+        )
+        trh2 = TransactionHandlerMock(
+            {"can_prepare_commit": MagicMock(return_value=False)}
+        )
         trm.add_transaction_handler(trh1)
         trm.add_transaction_handler(trh2)
         trm.rollback = MagicMock()

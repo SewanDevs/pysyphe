@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from pysyphe.exceptions import PysypheException, ActionException, TransactionException, WeAreDoomedException
+from pysyphe.exceptions import (
+    PysypheException,
+    ActionException,
+    TransactionException,
+    WeAreDoomedException,
+)
 
 
 def test_PysypheException():
