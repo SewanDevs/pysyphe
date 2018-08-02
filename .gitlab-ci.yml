@@ -4,6 +4,7 @@ variables:
     IMAGE_TAG: $DOCKER_REGISTRY/sophia/pysyphe
 
 stages:
+  - black
   - lint
   - test27
   - test36
@@ -16,6 +17,20 @@ before_script:
 
 after_script:
   - date
+
+
+
+#################################################################################
+#                                     Formating                                 #
+#################################################################################
+black:
+  image: python:3.6
+  stage: lint
+  script:
+    - pip install black
+    - black --check .
+
+
 
 #################################################################################
 #                                     Analysis                                  #
