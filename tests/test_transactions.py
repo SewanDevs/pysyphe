@@ -251,12 +251,8 @@ class TestTransactionsManager(object):
     def test_mutex_handler_begin_first():
         trm = TransactionsManager()
         begins = []
-        mh = TransactionHandlerMock({
-            "begin": lambda : begins.append("A")
-        })
-        th = TransactionHandlerMock({
-            "begin": lambda : begins.append("B")
-        })
+        mh = TransactionHandlerMock({"begin": lambda: begins.append("A")})
+        th = TransactionHandlerMock({"begin": lambda: begins.append("B")})
         trm.set_mutex_handler(mh)
         trm.add_transaction_handler(th)
         with trm.begin():
@@ -266,12 +262,8 @@ class TestTransactionsManager(object):
     def test_mutex_handler_commit_last():
         trm = TransactionsManager()
         commits = []
-        mh = TransactionHandlerMock({
-            "commit": lambda : commits.append("A")
-        })
-        th = TransactionHandlerMock({
-            "commit": lambda : commits.append("B")
-        })
+        mh = TransactionHandlerMock({"commit": lambda: commits.append("A")})
+        th = TransactionHandlerMock({"commit": lambda: commits.append("B")})
         trm.set_mutex_handler(mh)
         trm.add_transaction_handler(th)
         with trm.begin():
@@ -282,12 +274,8 @@ class TestTransactionsManager(object):
     def test_mutex_handler_rollback_last():
         trm = TransactionsManager()
         rollbacks = []
-        mh = TransactionHandlerMock({
-            "rollback": lambda : rollbacks.append("A")
-        })
-        th = TransactionHandlerMock({
-            "rollback": lambda : rollbacks.append("B")
-        })
+        mh = TransactionHandlerMock({"rollback": lambda: rollbacks.append("A")})
+        th = TransactionHandlerMock({"rollback": lambda: rollbacks.append("B")})
         trm.set_mutex_handler(mh)
         trm.add_transaction_handler(th)
         with trm.begin():
@@ -298,12 +286,8 @@ class TestTransactionsManager(object):
     def test_mutex_handler_begin_exception():
         trm = TransactionsManager()
         begins = []
-        mh = TransactionHandlerMock({
-            "begin": lambda : begins.append("A")
-        })
-        th = TransactionHandlerMock({
-            "begin": MagicMock(side_effect=Exception())
-        })
+        mh = TransactionHandlerMock({"begin": lambda: begins.append("A")})
+        th = TransactionHandlerMock({"begin": MagicMock(side_effect=Exception())})
         trm.set_mutex_handler(mh)
         trm.add_transaction_handler(th)
         try:
