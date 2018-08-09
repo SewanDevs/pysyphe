@@ -20,20 +20,25 @@ class TransactionHandler(object):
     If any transaction fails, `rollback` will be called on all the managed transactions.
     `rollback` should undo everything done in execute and release locks if any.
 
-    If all executions succeed, `prepare_commit` will be called. It returns True if the transaction is ready to be commited.
-    When all transactions commit are prepared, `commit` will be called by the transactions manager.
-    If any transaction handler's commit preparation fails, all transactions will be rollbacked.
+    If all executions succeed, `prepare_commit` will be called. It returns True if the transaction is ready
+    to be commited. When all transactions commit are prepared, `commit` will be called by the transactions
+    manager. If any transaction handler's commit preparation fails, all transactions will be rollbacked.
 
     Reliability of the transaction depends on the confidence we can have in the prepare_commit->commit phase.
     If the probability of a fail of the commit phase after a successfull commit preparation is high,
     then the transaction is not reliable.
 
-    There is cases when commit can't be prepared (with simple mysql transaction for example) and then commit may fail.
-    The manager will do this kind of commit first.
+    There is cases when commit can't be prepared (with simple mysql transaction for example) and then commit
+    may fail. The manager will do this kind of commit first.
 
-    The transactions manager calls `can_prepare_commit` on all the transaction handlers to know if a commit can be prepared.
+    The transactions manager calls `can_prepare_commit` on all the transaction handlers to know if a commit
+    can be prepared.
 
-    If a transaction uses locks, it should be acquired in the begin phase and released in the rollback and commit phases.
+    Warning:
+        The rollback may be called before the execute or even the begin. It is up to your transaction handler
+        to be ready for that.
+        The rollback may be called after the commit if another transaction commit fails. If the transaction
+        has a way to rollback commmited things, it shoulds do it.
     """
 
     def begin(self):
@@ -68,11 +73,20 @@ class TransactionsManager(object):
             trm.execute()
             trm.commit()
     ```
-    Any exception under the context manager will be handled by the transaction manager that will rollback everything.
+    Any exception under the context manager will be handled by the transaction manager that will rollback
+    everything.
+
+    If you want to protect you transactions with a mutex, you should set a mutex handler. It is a transaction
+    handler that will be called first and commited/rollbacked last to protect the whole process.
+
+    Warning:
+        The rollback may be called before the execute or even the begin. It is up to your transaction handler
+        to be ready for that.
     """
 
     def __init__(self):
         self._transaction_handlers = []
+        self._mutex_handler = TransactionHandler()
         self._begun = False
         self._already_rollbacked = False
         self.exceptions_encountered = []
@@ -83,9 +97,20 @@ class TransactionsManager(object):
         You can't add a handler after the call to `begin`.
         """
         if self._begun:
-            # Can't add transaction handler after transaction have began
             raise TransactionException("Transactions have begun!")
         self._transaction_handlers.append(transaction_handler)
+
+    def set_mutex_handler(self, mutex_handler):
+        """ Set the mutex handler. Mutex handler is a transaction handler but it is always begun first and
+        rollbacked/commited last.
+        The transaction steps for the mutex handler are simpler: begin is called at the beginning before the
+        other transactions and commit/rollback at the end after the others, the other steps are skipped.
+        Args:
+            mutex_handler (TransactionHandler)
+        """
+        if self._begun:
+            raise TransactionException("Transactions have begun!")
+        self._mutex_handler = mutex_handler
 
     def _add_exception_encoutered(self, exception):
         """ Add an exception and its traceback to the attribute exceptions_encountered.
@@ -102,14 +127,17 @@ class TransactionsManager(object):
     @contextmanager
     def begin(self):
         """ Context manager to begin all transactions. Call `begin` on all transaction handlers. """
-        # TODO: currently one can call execute, rollback, etc outside of the context manager because the begun attribute is not
-        # reset at the end of this method.
+        # TODO: currently one can call execute, rollback, etc outside of the context manager because the begun
+        # attribute is not reset at the end of this method.
         self._already_rollbacked = False
         self.exceptions_encountered = []
-        for transaction_handler in self._transaction_handlers:
-            transaction_handler.begin()
-        self._begun = True
         try:
+            self._begun = True
+            # mutex handler first
+            self._mutex_handler.begin()
+            # classic transactions handler next in same order as appended.
+            for transaction_handler in self._transaction_handlers:
+                transaction_handler.begin()
             yield
         except Exception as e:
             self._add_exception_encoutered(e)
@@ -154,12 +182,19 @@ class TransactionsManager(object):
             raise TransactionException("Transactions have not begun!")
         self._already_rollbacked = True
         last_exc = None
+        # Classic transactions first in the same order as appended.
         for transaction_handler in self._transaction_handlers:
             try:
                 transaction_handler.rollback()
             except Exception as e:
                 self.exceptions_encountered.append((e, traceback.format_exc()))
                 last_exc = e
+        # mutex handler last.
+        try:
+            self._mutex_handler.rollback()
+        except Exception as e:
+            self.exceptions_encountered.append((e, traceback.format_exc()))
+            last_exc = e
         if last_exc:
             raise last_exc
 
@@ -197,6 +232,7 @@ class TransactionsManager(object):
             transaction_handler.commit()
         for transaction_handler in prepare_commit_trs:
             transaction_handler.commit()
+        self._mutex_handler.commit()
         # FYI: since commit should be done inside the begin context managing, if a commit fails, even the last, rollback will be
         # done. We could have decided to throw an exception if a prepare_commit fails for the same begin context manager to
         # rollback for us. TODO: we could even decide that prepare_commit shouldn't return a boolean but only throw an exception

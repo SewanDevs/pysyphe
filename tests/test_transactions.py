@@ -40,7 +40,9 @@ class TestTransactionsManager(object):
     @staticmethod
     def test_add_transaction_handler():
         trm = TransactionsManager()
-        trm.add_transaction_handler(TransactionHandlerMock())
+        th = TransactionHandlerMock()
+        trm.add_transaction_handler(th)
+        assert th in trm._transaction_handlers
 
     @staticmethod
     def test_add_transaction_handler_begun():
@@ -230,6 +232,86 @@ class TestTransactionsManager(object):
         assert not trh1.commit.called
         assert not trh2.commit.called
         assert trm.rollback.called
+
+    @staticmethod
+    def test_add_mutex_handler():
+        trm = TransactionsManager()
+        th = TransactionHandlerMock()
+        trm.set_mutex_handler(th)
+        assert trm._mutex_handler == th
+
+    @staticmethod
+    def test_add_mutex_handler_begun():
+        trm = TransactionsManager()
+        with trm.begin():
+            with pytest.raises(TransactionException):
+                trm.set_mutex_handler(TransactionHandlerMock())
+
+    @staticmethod
+    def test_mutex_handler_begin_first():
+        trm = TransactionsManager()
+        begins = []
+        mh = TransactionHandlerMock({
+            "begin": lambda : begins.append("A")
+        })
+        th = TransactionHandlerMock({
+            "begin": lambda : begins.append("B")
+        })
+        trm.set_mutex_handler(mh)
+        trm.add_transaction_handler(th)
+        with trm.begin():
+            assert begins == ["A", "B"]
+
+    @staticmethod
+    def test_mutex_handler_commit_last():
+        trm = TransactionsManager()
+        commits = []
+        mh = TransactionHandlerMock({
+            "commit": lambda : commits.append("A")
+        })
+        th = TransactionHandlerMock({
+            "commit": lambda : commits.append("B")
+        })
+        trm.set_mutex_handler(mh)
+        trm.add_transaction_handler(th)
+        with trm.begin():
+            trm.commit()
+            assert commits == ["B", "A"]
+
+    @staticmethod
+    def test_mutex_handler_rollback_last():
+        trm = TransactionsManager()
+        rollbacks = []
+        mh = TransactionHandlerMock({
+            "rollback": lambda : rollbacks.append("A")
+        })
+        th = TransactionHandlerMock({
+            "rollback": lambda : rollbacks.append("B")
+        })
+        trm.set_mutex_handler(mh)
+        trm.add_transaction_handler(th)
+        with trm.begin():
+            trm.rollback()
+            assert rollbacks == ["B", "A"]
+
+    @staticmethod
+    def test_mutex_handler_begin_exception():
+        trm = TransactionsManager()
+        begins = []
+        mh = TransactionHandlerMock({
+            "begin": lambda : begins.append("A")
+        })
+        th = TransactionHandlerMock({
+            "begin": MagicMock(side_effect=Exception())
+        })
+        trm.set_mutex_handler(mh)
+        trm.add_transaction_handler(th)
+        try:
+            with trm.begin():
+                pass
+        except Exception:
+            pass
+        assert begins == ["A"]
 
 
 class ActionsPipelineMock(object):

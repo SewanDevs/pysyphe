@@ -170,7 +170,7 @@ class Action(object):
             self.notify("action", "end")
             return ret
         except Exception as exc:
-            # TODO: Maybe remove some levels of exception traceback to see exception from the point of view of the rollback fct.
+            # TODO: Maybe remove some levels of exception traceback to see exception from the point of view of the action fct.
             self.notify("action", "end", exc=exc)
             raise exc
 
