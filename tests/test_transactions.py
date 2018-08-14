@@ -287,8 +287,8 @@ class TestTransactionsManager(object):
         trm = TransactionsManager()
         begins = []
         mh = TransactionHandlerMock({"begin": lambda: begins.append("A")})
-        th = TransactionHandlerMock({"begin": MagicMock(side_effect=Exception())})
         trm.set_mutex_handler(mh)
+        th = TransactionHandlerMock({"begin": MagicMock(side_effect=Exception())})
         trm.add_transaction_handler(th)
         try:
             with trm.begin():
@@ -296,6 +296,22 @@ class TestTransactionsManager(object):
         except Exception:
             pass
         assert begins == ["A"]
+
+    @staticmethod
+    def test_mutex_handler_rollback_exception():
+        trm = TransactionsManager()
+        rollbacks = []
+        th = TransactionHandlerMock({"rollback": lambda: rollbacks.append("A")})
+        trm.add_transaction_handler(th)
+        mh = TransactionHandlerMock({"rollback": MagicMock(side_effect=Exception())})
+        trm.set_mutex_handler(mh)
+        try:
+            with trm.begin():
+                trm.rollback()
+        except Exception:
+            pass
+        assert rollbacks == ["A"]
+        assert mh.rollback.called
 
 
 class ActionsPipelineMock(object):
