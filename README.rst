@@ -259,7 +259,7 @@ TODOs
 - Generate the documentation
 - Add a "How-To correctly write unit actions to get the most out of pysyphe" into the documentation
 
-.. |sewan_logo| image:: http://http://entreprises.smallizbeautiful.fr/logo/Sewan-Communications.jpg
+.. |sewan_logo| image:: http://entreprises.smallizbeautiful.fr/logo/Sewan-Communications.jpg
 .. |pipeline_status| image:: https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/pipeline.svg
    :target: https://gitlab.priv.sewan.fr/sophia/pysyphe/pipelines
 .. |coverage| image:: https://gitlab.priv.sewan.fr/sophia/pysyphe/badges/master/coverage.svg
