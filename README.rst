@@ -5,8 +5,6 @@ Pysyphe
 
 Helps you create and manage your own rollbackable transactions.
 
-|sewan_logo|
-
 Really Soon:
 ----------
 - README specific to github. (Don't trust this readme for the moment)
