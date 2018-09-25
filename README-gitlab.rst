@@ -5,17 +5,18 @@ Pysyphe
 
 Helps you create and manage your own rollbackable transactions.
 
-Really Soon:
-----------
-- CircleCI file
-
 Installation
 ------------
 
 .. code-block:: console
 
-    $ pip install pysyphe
+    $ pip install --trusted-host devpi.priv.sewan.fr --index-url http://devpi.priv.sewan.fr/sophia/prod/ pysyphe
 
+Or, if your pipenv is correctly configured:
+
+.. code-block:: console
+
+    $ pipenv install pysyphe
 
 
 Tests
