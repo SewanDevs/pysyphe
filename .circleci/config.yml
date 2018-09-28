@@ -72,8 +72,9 @@ jobs:
             - image: circleci/python:3.6
         steps:
             - attach_workspace:
-                at: .
+                at: /tmp
             - checkout
+            - run: cp /tmp/.coverage ./.coverage
             - run: pip install --user tox
             - run: python -m tox -e py36
             - store_artifacts:
