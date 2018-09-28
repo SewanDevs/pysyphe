@@ -44,7 +44,7 @@ jobs:
             - image: circleci/python:3.6
         steps:
             - checkout
-            - run: pip install black
+            - run: pip install --user black
             - run: black --check .
 
     flake8:
@@ -52,7 +52,7 @@ jobs:
             - image: circleci/python:2.7
         steps:
             - checkout
-            - run: pip install flake8
+            - run: pip install --user flake8
             - run: flake8
 
     tox2.7:
@@ -60,7 +60,7 @@ jobs:
             - image: circleci/python:2.7
         steps:
             - checkout
-            - run: pip install tox
+            - run: pip install --user tox
             - run: tox -e py27
             - persist_to_workspace:
                 root: .
@@ -74,7 +74,7 @@ jobs:
             - attach_workspace:
                 at: .
             - checkout
-            - run: pip install tox
+            - run: pip install --user tox
             - run: tox -e py36
             - store_artifacts:
                 path: reports/
@@ -84,6 +84,6 @@ jobs:
             - image: circleci/python:3.6
         steps:
             - checkout
-            - run: pip install setuptools wheel twine
+            - run: pip install --user --upgrade setuptools wheel twine
             - run: python setup.py sdist bdist_wheel
             - run: twine upload -u §pypi_username -p $pypi_password dist/*
