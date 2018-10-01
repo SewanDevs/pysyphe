@@ -35,6 +35,8 @@ workflows:
                     - tox2.7
                     - tox3.6
                 filters:
+                    branches:
+                        ignore: /.*/
                     tags:
                         only: /^\d+\.\d+\.\d+$/
 
@@ -87,4 +89,4 @@ jobs:
             - checkout
             - run: pip install --user --upgrade setuptools wheel twine
             - run: python setup.py sdist bdist_wheel
-            - run: python -m twine upload -u §pypi_username -p $pypi_password dist/*
+            - run: python -m twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/*
