@@ -5,10 +5,6 @@ Pysyphe
 
 Helps you create and manage your own rollbackable transactions.
 
-Really Soon:
-----------
-- CircleCI file
-
 Installation
 ------------
 
