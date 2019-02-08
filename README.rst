@@ -1,7 +1,8 @@
 Pysyphe
 =======
 
-|pipeline_status| |coverage|
+.. image:: https://circleci.com/gh/SewanDevs/pysyphe.svg?style=svg
+    :target: https://circleci.com/gh/SewanDevs/pysyphe
 
 Helps you create and manage your own rollbackable transactions.
 
